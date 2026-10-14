@@ -1752,7 +1752,7 @@ function sbPullWorkouts() {
 }
 
 function sbState() { return SB.rpc('my_state'); }
-function sbLeaderboard() { return SB.rpc('leaderboard'); }
+function sbLeaderboard() { return SB.rpc('leaderboard', { p_limit: 100 }); }
 function sbFriends() { return SB.rpc('list_friends'); }
 function sbAddFriend(nickname) { return SB.rpc('send_friend_request', { p_nickname: nickname }); }
 function sbAnswerFriend(id, accept) { return SB.rpc('answer_friend_request', { p_friend: id, p_accept: accept }); }
