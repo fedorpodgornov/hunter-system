@@ -429,6 +429,7 @@ footer{
       <button class="tab is-on" type="button" data-tab="quest">Квест</button>
       <button class="tab" type="button" data-tab="train">Тренировка</button>
       <button class="tab" type="button" data-tab="status">Статус</button>
+      <button class="tab" type="button" data-tab="leaders">Лидеры</button>
       <button class="tab" type="button" data-tab="net">Сеть</button>
       <button class="tab" type="button" data-tab="more">Ещё</button>
     </nav>
@@ -613,17 +614,20 @@ footer{
           <div>
             <p class="lbl lbl--dim">Аккаунт и синхронизация</p>
             <div class="netcol">
-              <div class="field">
-                <label for="net-email"><span>Почта</span></label>
-                <input type="text" id="net-email" autocomplete="username" placeholder="you@example.com">
-              </div>
-              <div class="field">
-                <label for="net-pass"><span>Пароль</span></label>
-                <input type="password" id="net-pass" autocomplete="current-password" placeholder="минимум 6 символов">
-              </div>
-              <div class="field" id="net-nick-row">
-                <label for="net-nick"><span>Ник охотника</span></label>
-                <input type="text" id="net-nick" maxlength="24" autocomplete="off" placeholder="как тебя увидят в таблице">
+              <p class="err" id="net-msg" role="status"></p>
+              <div id="net-cred">
+                <div class="field">
+                  <label for="net-email"><span>Почта</span></label>
+                  <input type="text" id="net-email" autocomplete="username" placeholder="you@example.com">
+                </div>
+                <div class="field">
+                  <label for="net-pass"><span>Пароль</span></label>
+                  <input type="password" id="net-pass" autocomplete="current-password" placeholder="минимум 6 символов">
+                </div>
+                <div class="field" id="net-nick-row">
+                  <label for="net-nick"><span>Ник охотника</span></label>
+                  <input type="text" id="net-nick" maxlength="24" autocomplete="off" placeholder="как тебя увидят в таблице">
+                </div>
               </div>
               <div class="tools">
                 <button class="btn btn--tiny btn--primary" id="net-signup" type="button">Создать аккаунт</button>
@@ -636,22 +640,6 @@ footer{
             </div>
           </div>
           <div>
-            <p class="lbl lbl--dim">Друзья</p>
-            <div class="netcol">
-              <div class="tools" id="net-friend-tools">
-                <input type="text" id="net-friend-nick" maxlength="24" placeholder="ник охотника" aria-label="Ник охотника для заявки в друзья">
-                <button class="btn btn--tiny" id="net-friend-add" type="button">Добавить</button>
-              </div>
-              <div class="loglist" id="net-friends-list"></div>
-            </div>
-          </div>
-          <div>
-            <p class="lbl lbl--dim">Таблица лидеров</p>
-            <div class="netcol">
-              <div class="loglist" id="net-leaders-list"></div>
-            </div>
-          </div>
-          <div>
             <p class="lbl lbl--dim">Честность и баны</p>
             <div class="netcol">
               <p class="hint" id="net-mod"></p>
@@ -659,8 +647,33 @@ footer{
             </div>
           </div>
         </div>
-        <p class="err" id="net-msg" role="status"></p>
         <p class="hint supnote" id="net-note"></p>
+      </section>
+    </div>
+
+    <div class="tabpage" id="tab-leaders" hidden>
+      <section class="panel panel--glow" aria-labelledby="lead-title">
+        <div class="panel__head">
+          <h2 id="lead-title">Таблица лидеров</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim" id="lead-state"></span>
+        </div>
+        <p class="err" id="lead-msg" role="status"></p>
+        <div class="grid">
+          <div class="stack">
+            <p class="lbl lbl--dim">Топ: ты и твои друзья</p>
+            <div class="loglist" id="net-leaders-list"></div>
+          </div>
+          <div class="stack">
+            <p class="lbl lbl--dim">Друзья</p>
+            <div class="tools" id="net-friend-tools">
+              <input type="text" id="net-friend-nick" maxlength="24" placeholder="ник охотника" aria-label="Ник охотника для заявки в друзья">
+              <button class="btn btn--tiny" id="net-friend-add" type="button">Добавить</button>
+            </div>
+            <div class="loglist" id="net-friends-list"></div>
+          </div>
+        </div>
+        <p class="hint supnote" id="lead-note"></p>
       </section>
     </div>
 
@@ -1708,7 +1721,7 @@ var activeTab = 'quest';
 
 function showTab(name) {
   activeTab = name;
-  ['quest', 'train', 'status', 'net', 'more'].forEach(function (t) {
+  ['quest', 'train', 'status', 'leaders', 'net', 'more'].forEach(function (t) {
     var page = $('tab-' + t);
     if (page) page.hidden = (t !== name);
   });
@@ -2031,9 +2044,15 @@ function commit() {
 }
 </script>
 <script>function netMsg(text, ok) {
-  var el = $('net-msg');
-  el.className = ok ? 'err ok' : 'err';
-  el.textContent = text || '';
+  ['net-msg', 'lead-msg'].forEach(function (id) {
+    var el = $(id);
+    if (!el) return;
+    el.className = ok ? 'err ok' : 'err';
+    el.textContent = text || '';
+    if (text && el.offsetParent !== null && el.scrollIntoView) {
+      try { el.scrollIntoView({ block: 'nearest' }); } catch (e) { /* без прокрутки */ }
+    }
+  });
 }
 
 function netTime(iso) {
@@ -2053,12 +2072,20 @@ function renderNet() {
   var logged = conf && !!SB.session && !!SB.session.access_token;
 
   $('net-status').textContent = !conf ? 'не подключено' : (logged ? 'вход выполнен' : 'войди в аккаунт');
+  $('lead-state').textContent = !conf ? 'не подключено' : (logged ? 'ты и друзья' : 'нужен вход');
+  $('lead-note').textContent = logged
+    ? 'В таблице видны только ты и принятые друзья: чужие профили база не отдаёт. Опыт считает сервер, поэтому порядок в таблице подделать нельзя. Забаненные за накрутку остаются внизу списка с пометкой.'
+    : 'Чтобы увидеть таблицу, войди в аккаунт во вкладке «Сеть». Друзья добавляются по нику охотника — тому, что человек указал при регистрации.';
+
+  var cred = $('net-cred');
+  if (cred) cred.hidden = logged;
   $('net-note').textContent = conf
     ? 'Опыт и уровень считает сервер, поэтому свои цифры подделать нельзя. Снять заморозку или бан себе тоже нельзя — это делает только владелец проекта в панели Supabase. Синхронизация включается кнопками вручную: автоматической фоновой синхронизации нет.'
     : 'Сервер не настроен. Выполни supabase/schema.sql в своём проекте Supabase и впиши его URL и публичный anon-ключ в config.js, потом пересобери файл. Без сервера друзей, таблицы лидеров и синхронизации быть не может: данные лежат только в этом браузере.';
 
   [['net-signup', !logged], ['net-signin', !logged], ['net-signout', logged], ['net-push', logged], ['net-pull', logged]].forEach(function (pair) {
-    $(pair[0]).hidden = !pair[1];
+    var el = $(pair[0]);
+    if (el) el.hidden = !pair[1];
   });
   $('net-nick-row').hidden = logged || !conf;
   $('net-who').textContent = logged ? ('Вы вошли как ' + SB.email()) : '';
