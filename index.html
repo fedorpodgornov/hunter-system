@@ -1469,7 +1469,33 @@ function sbConfigured() {
   return !!(CONFIG.supabaseUrl && CONFIG.supabaseAnonKey);
 }
 </script>
-<script>var SB = {
+<script>var SB_ERRORS = {
+  weak_password: 'Пароль слишком простой: нужно минимум 6 символов и лучше с буквами и цифрами.',
+  user_already_exists: 'Такая почта уже зарегистрирована. Нажми «Войти».',
+  email_exists: 'Такая почта уже зарегистрирована. Нажми «Войти».',
+  validation_failed: 'Проверь данные: почта вида name@mail.ru, пароль от 6 символов, ник от 2 символов.',
+  invalid_credentials: 'Неверная почта или пароль. Если аккаунт создавался раньше — проверь пароль.',
+  over_email_send_rate_limit: 'Слишком много писем за короткое время. Подожди пару минут.',
+  over_request_rate_limit: 'Слишком много запросов. Подожди минуту и попробуй снова.',
+  signup_disabled: 'Регистрация в проекте отключена — напиши владельцу базы.',
+  email_address_invalid: 'Почта выглядит некорректно: нужен адрес вида name@mail.ru.'
+};
+
+function sbErrorText(err) {
+  if (!err) return 'Неизвестная ошибка.';
+  if (err.errorCode && SB_ERRORS[err.errorCode]) return SB_ERRORS[err.errorCode];
+  return err.message || 'Неизвестная ошибка.';
+}
+
+function sbLooksLikeDuplicate(err) {
+  if (!err) return false;
+  if (err.errorCode === 'user_already_exists' || err.errorCode === 'email_exists') return true;
+  if (err.status !== 422 && err.status !== 400) return false;
+  var m = String(err.message || '');
+  return m.indexOf('already') >= 0 || m.indexOf('422') >= 0 || m.indexOf('отклонил') >= 0 || m.indexOf('registered') >= 0;
+}
+
+var SB = {
   session: null,
 
   load: function () {
@@ -1495,11 +1521,17 @@ function sbConfigured() {
   parse: function (res) {
     return res.text().then(function (text) {
       var data = null;
-      if (text) { try { data = JSON.parse(text); } catch (e) { data = { message: text }; } }
+      if (text) { try { data = JSON.parse(text); } catch (e) { data = { msg: text }; } }
       if (!res.ok) {
-        var msg = (data && (data.message || data.error_description || data.error || data.hint)) || ('ошибка сервера ' + res.status);
+        var msg = (data && (data.msg || data.message || data.error_description || data.error || data.hint)) || null;
+        if (!msg) {
+          msg = res.status === 422
+            ? 'Сервер отклонил запрос (422). Чаще всего так бывает, если почта уже зарегистрирована или пароль слишком простой.'
+            : 'Ошибка сервера: ' + res.status;
+        }
         var err = new Error(msg);
         err.status = res.status;
+        err.errorCode = data && (data.error_code || data.code) ? (data.error_code || data.code) : '';
         throw err;
       }
       return data;
@@ -2182,24 +2214,41 @@ function netSignUp() {
   var email = $('net-email').value.trim();
   var pass = $('net-pass').value;
   var nick = $('net-nick').value.trim();
-  if (email.indexOf('@') < 1) { netMsg('Нужна почта вида you@example.com'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { netMsg('Почта должна быть вида name@mail.ru'); return; }
   if (pass.length < 6) { netMsg('Пароль — минимум 6 символов.'); return; }
   if (nick.length < 2) { netMsg('Ник охотника — минимум 2 символа.'); return; }
+
   netBusy(true);
+  netMsg('Отправляю запрос…', true);
   SB.signUp(email, pass, nick).then(function (data) {
-    netBusy(false);
     if (data && data.access_token) {
       SB.session = data;
       SB.save();
       return sbEnsureProfile().then(function () {
+        netBusy(false);
         netMsg('Аккаунт создан, вы вошли как ' + SB.email(), true);
         renderNet();
       });
     }
-    netMsg('Аккаунт создан. Подтверди почту по письму и войди — если в проекте включено подтверждение.', true);
-  }).catch(function (e) {
     netBusy(false);
-    netMsg('Не получилось: ' + e.message);
+    netMsg('Аккаунт создан. Подтверди почту по письму и войди.', true);
+  }).catch(function (e) {
+    if (!sbLooksLikeDuplicate(e)) {
+      netBusy(false);
+      netMsg('Регистрация не прошла: ' + sbErrorText(e));
+      return null;
+    }
+    netMsg('Такая почта уже зарегистрирована. Пробую войти с этим паролем…', true);
+    return SB.signIn(email, pass).then(function () {
+      return sbEnsureProfile();
+    }).then(function () {
+      netBusy(false);
+      netMsg('Вы вошли как ' + SB.email() + '. Аккаунт был создан раньше — можно продолжать.', true);
+      renderNet();
+    }).catch(function (e2) {
+      netBusy(false);
+      netMsg('Почта уже занята, но пароль не подошёл: ' + sbErrorText(e2) + ' Нажми «Войти» с верным паролем.');
+    });
   });
 }
 
@@ -2208,6 +2257,7 @@ function netSignIn() {
   var pass = $('net-pass').value;
   if (email.indexOf('@') < 1 || pass.length < 6) { netMsg('Введи почту и пароль (от 6 символов).'); return; }
   netBusy(true);
+  netMsg('Проверяю данные…', true);
   SB.signIn(email, pass).then(function () {
     $('net-pass').value = '';
     return sbEnsureProfile();
@@ -2217,7 +2267,7 @@ function netSignIn() {
     renderNet();
   }).catch(function (e) {
     netBusy(false);
-    netMsg('Вход не удался: ' + e.message);
+    netMsg('Вход не удался: ' + sbErrorText(e));
   });
 }
 
