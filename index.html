@@ -2,9 +2,9 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>СИСТЕМА — трекер тренировок с прокачкой уровня</title>
-<meta name="description" content="Дневник тренировок в стиле интерфейса «Системы» из аниме: опыт за каждую тренировку, уровни, ранги от E до S, ежедневные квесты и характеристики. Работает офлайн, данные хранятся в браузере.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>СИСТЕМА — квесты, тренировки и прокачка уровня</title>
+<meta name="description" content="Дневник тренировок в стиле интерфейса «Системы»: ежедневный квест с дедлайном, штрафная зона, тренировки с таймерами, опыт, уровни, ранги, друзья и таблица лидеров. Работает офлайн, данные хранятся в браузере.">
 <meta name="color-scheme" content="dark">
 <style>:root{
   --void:#04060d;
@@ -185,7 +185,7 @@ textarea{resize:vertical;min-height:62px}
 .radarwrap{display:grid;place-items:center;gap:8px;align-content:start}
 .radar{width:100%;max-width:230px;height:auto}
 .statlist{width:100%;display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.statrow{display:grid;grid-template-columns:44px 1fr 34px;gap:10px;align-items:center;font-family:var(--mono);font-size:11.5px}
+.statrow{display:grid;grid-template-columns:44px 1fr 34px 26px;gap:8px;align-items:center;font-family:var(--mono);font-size:11.5px}
 .statrow span:first-child{color:var(--dim);letter-spacing:.12em}
 .statrow b{text-align:right}
 .stbar{height:7px;background:rgba(126,151,173,.18);position:relative}
@@ -310,12 +310,67 @@ footer{
 @keyframes noteIn{from{opacity:0;transform:translateY(-14px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes lineIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
 
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(6,11,20,.7);border:1px solid rgba(126,151,173,.3);color:var(--dim);
+  padding:9px 14px;transition:.15s;
+}
+.tab:hover{border-color:var(--system-dim);color:var(--text)}
+.tab.is-on{border-color:var(--system);color:var(--text);background:rgba(92,225,255,.14);box-shadow:0 0 18px rgba(92,225,255,.25)}
+.tabpage{display:flex;flex-direction:column;gap:18px}
+
+.panel--glow{border-color:var(--system);box-shadow:inset 0 1px 0 rgba(146,235,255,.14), 0 0 46px -18px rgba(92,225,255,.7)}
+.panel--danger{border-color:var(--danger);box-shadow:inset 0 1px 0 rgba(255,143,163,.14), 0 0 46px -18px rgba(255,95,122,.7)}
+.panel--danger h2,.panel--danger .lbl{color:var(--danger)}
+
+.deadline{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  border:1px solid rgba(92,225,255,.2);background:rgba(6,11,20,.66);padding:12px 14px;margin-bottom:14px;
+}
+.deadline__num{font-family:var(--mono);font-size:30px;line-height:1.1;letter-spacing:.06em;color:var(--system);text-shadow:0 0 22px rgba(92,225,255,.45)}
+.deadline__state{font-family:var(--mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.deadline__ok{color:var(--ok)}
+.deadline__bad{color:var(--danger);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+.penalty__lead{font-size:14px;color:#ffd7de;max-width:70ch}
+.quest.is-penalty{border-color:rgba(255,95,122,.55);background:rgba(255,95,122,.08)}
+.quest.is-penalty .quest__stat{color:var(--danger);border-color:rgba(255,95,122,.5)}
+
+.presets{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.preset{
+  text-align:left;border:1px solid rgba(126,151,173,.3);background:rgba(6,11,20,.7);
+  padding:11px 12px;display:flex;flex-direction:column;gap:5px;transition:.15s;
+}
+.preset:hover{border-color:var(--system-dim);background:rgba(92,225,255,.07)}
+.preset.is-on{border-color:var(--system);background:rgba(92,225,255,.14);box-shadow:0 0 20px rgba(92,225,255,.22)}
+.preset__n{font-size:14px;font-weight:620}
+.preset__d{font-family:var(--mono);font-size:10.5px;color:var(--dim);letter-spacing:.06em}
+
+.session{
+  border:1px solid rgba(92,225,255,.2);background:rgba(6,11,20,.66);padding:16px;
+  display:flex;flex-direction:column;align-items:center;gap:10px;
+}
+.session__reps{font-family:var(--mono);font-size:64px;line-height:1;color:var(--system);text-shadow:0 0 30px rgba(92,225,255,.5)}
+.session__units{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+.session__ctrls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.session__plus{min-width:74px;font-size:14px;letter-spacing:.06em}
+.rest{display:grid;place-items:center;gap:6px;border:1px dashed rgba(255,154,60,.5);background:rgba(255,154,60,.07);padding:14px;margin-top:14px}
+.rest__num{font-family:var(--mono);font-size:44px;line-height:1;color:var(--ember);text-shadow:0 0 26px rgba(255,154,60,.5)}
+
+.alloc{font-family:var(--mono);font-size:11.5px;color:var(--ember);letter-spacing:.06em;margin-top:4px;text-align:center}
+.allocbtn{padding:2px 8px;line-height:1.3}
+
 @media (max-width:900px){
   .status,.grid{grid-template-columns:minmax(0,1fr)}
   .explain dl{grid-template-columns:1fr;gap:2px 0}
   .explain dd{margin-bottom:8px}
 }
 @media (max-width:520px){
+  .session__reps{font-size:46px}
+  .deadline__num{font-size:24px}
+  .tab{padding:8px 10px;font-size:10.5px;letter-spacing:.1em}
   .rank{width:78px;height:78px}
   .rank__l{font-size:30px}
   .wrap{padding:16px 13px 52px}
@@ -330,10 +385,6 @@ footer{
 </head>
 <body>
 <div class="notify" id="notify" aria-live="polite"></div>
-
-<noscript>
-  <div class="wrap"><p class="noscript">Для работы Системы нужен включённый JavaScript: без него кнопки, опыт и квесты не работают.</p></div>
-</noscript>
 
 <div class="wrap">
   <div class="topbar">
@@ -351,9 +402,10 @@ footer{
     <h1 class="gate__title" id="gate-title">Обнаружен новый Пробуждённый. <em>Регистрация охотника.</em></h1>
     <p class="gate__lead">
       Это дневник тренировок, который выглядит и работает как интерфейс из аниме:
-      каждая реальная тренировка даёт опыт, опыт поднимает уровень, уровень открывает
-      ранги от <b>E</b> до <b>S</b>, а характеристики растут от того, что ты действительно делаешь.
-      Данные остаются в твоём браузере — сервера нет.
+      ежедневный квест до полуночи, штрафная зона за провал, тренировки со счётчиком
+      и таймером отдыха, опыт, уровни, ранги от <b>E</b> до <b>S</b> и характеристики,
+      которые растут от того, что ты действительно делаешь. Данные остаются в твоём
+      браузере — сервера нет, интернет не нужен.
     </p>
     <form class="gate__form" id="gate-form" novalidate>
       <div class="field">
@@ -373,286 +425,368 @@ footer{
   </section>
 
   <main id="app" hidden>
-    <section class="panel status" aria-labelledby="status-title">
-      <div>
+    <nav class="tabs" id="tabs" aria-label="Разделы">
+      <button class="tab is-on" type="button" data-tab="quest">Квест</button>
+      <button class="tab" type="button" data-tab="train">Тренировка</button>
+      <button class="tab" type="button" data-tab="status">Статус</button>
+      <button class="tab" type="button" data-tab="net">Сеть</button>
+      <button class="tab" type="button" data-tab="more">Ещё</button>
+    </nav>
+
+    <div class="tabpage" id="tab-quest">
+      <section class="panel panel--glow" aria-labelledby="quests-title">
         <div class="panel__head">
-          <h2 id="status-title">Статус</h2>
+          <h2 id="quests-title">Ежедневный квест</h2>
           <span class="rule"></span>
-          <span class="lbl lbl--dim" id="status-date"></span>
+          <span class="lbl lbl--dim" id="quests-left"></span>
         </div>
-        <div class="hunter">
-          <div class="rank" id="rank-badge">
-            <span class="rank__l" id="rank-letter">E</span>
-            <span class="rank__cap">РАНГ</span>
+        <div class="deadline">
+          <div>
+            <p class="lbl lbl--dim">До сброса квеста</p>
+            <p class="deadline__num" id="quest-timer">--:--:--</p>
           </div>
-          <div class="hunter__meta">
-            <span class="hunter__name" id="hunter-name-out">—</span>
-            <span class="hunter__title" id="hunter-title-out">Пробуждённый</span>
-            <span class="hunter__sub" id="hunter-class-out">—</span>
-          </div>
+          <div class="deadline__state" id="quest-state"></div>
         </div>
-        <div class="expbar">
-          <div class="expbar__top">
-            <span>Уровень <b id="level-out" class="num">1</b></span>
-            <span>Опыт <b id="exp-in" class="num">0</b> / <b id="exp-need" class="num">90</b></span>
-          </div>
-          <div class="track" role="progressbar" aria-label="Опыт до следующего уровня" id="exp-bar" aria-valuemin="0" aria-valuemax="90" aria-valuenow="0">
-            <div class="track__fill" id="exp-fill"></div>
-          </div>
-          <div class="rankscale" id="rankscale" aria-hidden="true"></div>
-          <div class="rankscale__cap"><span>E</span><span>D</span><span>C</span><span>B</span><span>A</span><span>S</span><span>EX</span></div>
+        <div class="quests" id="quests"></div>
+        <div class="questfoot">
+          <p>Не выполнишь все три до полуночи — Система засчитает провал, серия прервётся и появится штрафное задание.</p>
+          <button class="btn btn--tiny btn--ghost" id="quests-reroll" type="button">Заменить набор</button>
         </div>
-        <div class="metrics">
-          <div class="metric"><b id="metric-workouts" class="num">0</b><span>Тренировок</span></div>
-          <div class="metric"><b id="metric-minutes" class="num">0</b><span>Минут всего</span></div>
-          <div class="metric"><b id="metric-streak" class="num">0</b><span>Серия, дней</span></div>
-          <div class="metric"><b id="metric-total-exp" class="num">0</b><span>Опыт всего</span></div>
-        </div>
-      </div>
-      <div class="radarwrap">
-        <p class="lbl lbl--dim">Характеристики</p>
-        <svg class="radar" id="radar" viewBox="0 0 240 240" role="img" aria-label="Диаграмма характеристик охотника" />
-        <div class="statlist" id="statlist"></div>
-      </div>
-    </section>
+      </section>
 
-    <div class="grid">
-      <div class="stack">
-        <section class="panel" aria-labelledby="quests-title">
-          <div class="panel__head">
-            <h2 id="quests-title">Ежедневный квест</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="quests-left"></span>
-          </div>
-          <div class="quests" id="quests"></div>
-          <div class="questfoot">
-            <p>Квесты обновляются каждый день. Выполнишь все три — получишь бонус и день серии.</p>
-            <button class="btn btn--tiny btn--ghost" id="quests-reroll" type="button">Заменить набор</button>
-          </div>
-        </section>
+      <section class="panel panel--danger" id="penalty-panel" aria-labelledby="penalty-title" hidden>
+        <div class="panel__head">
+          <h2 id="penalty-title">Штрафная зона</h2>
+          <span class="rule"></span>
+          <span class="lbl" id="penalty-when"></span>
+        </div>
+        <p class="penalty__lead" id="penalty-text"></p>
+        <div class="quests" id="penalty-list"></div>
+      </section>
+    </div>
 
-        <section class="panel" aria-labelledby="log-title">
-          <div class="panel__head">
-            <h2 id="log-title">Записать тренировку</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim">опыт начисляется сразу</span>
+    <div class="tabpage" id="tab-train" hidden>
+      <section class="panel panel--glow" aria-labelledby="train-title">
+        <div class="panel__head">
+          <h2 id="train-title">Тренировка</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim" id="wk-state"></span>
+        </div>
+        <div class="presets" id="wk-presets"></div>
+
+        <div class="session" id="wk-session">
+          <p class="lbl lbl--dim" id="wk-set">Подход —</p>
+          <p class="session__reps" id="wk-reps">0</p>
+          <p class="session__units" id="wk-units">повторений</p>
+          <div class="session__ctrls">
+            <button class="btn btn--ghost" type="button" id="wk-minus" data-delta="-1" arialabel="Минус один">−1</button>
+            <button class="btn btn--primary session__plus" type="button" id="wk-plus1" data-delta="1">+1</button>
+            <button class="btn btn--primary session__plus" type="button" id="wk-plus5" data-delta="5">+5</button>
           </div>
-          <form id="log-form" novalidate>
-            <div class="formgrid">
-              <div class="field">
-                <label for="log-type"><span>Тип</span></label>
-                <select id="log-type" name="log-type"></select>
-              </div>
-              <div class="field">
-                <label for="log-minutes"><span>Длительность, мин</span></label>
-                <input type="number" id="log-minutes" name="log-minutes" min="1" max="600" step="1" inputmode="numeric" placeholder="45">
-              </div>
-              <div class="field">
-                <label for="log-intensity"><span>Интенсивность</span></label>
-                <select id="log-intensity" name="log-intensity"></select>
-              </div>
-              <div class="field wide">
-                <label for="log-note"><span>Заметка (необязательно)</span></label>
-                <textarea id="log-note" name="log-note" maxlength="160" placeholder="Например: круговая на 5 станций, самочувствие нормальное"></textarea>
-              </div>
+          <div class="session__ctrls">
+            <button class="btn" type="button" id="wk-set-done">Подход закрыт</button>
+            <button class="btn btn--ghost" type="button" id="wk-finish">Закончить</button>
+          </div>
+        </div>
+
+        <div class="rest" id="wk-rest" hidden>
+          <p class="lbl">Отдых</p>
+          <p class="rest__num" id="wk-rest-num">60</p>
+          <button class="btn btn--tiny btn--ghost" type="button" id="wk-skip-rest">Пропустить отдых</button>
+        </div>
+
+        <p class="err" id="wk-msg" role="status"></p>
+        <p class="hint">Счётчик считает вслух только то, что ты нажимаешь сам. Отдых отсчитывается автоматически, звук и вибрация включаются кнопкой в разделе «Ещё».</p>
+      </section>
+
+      <section class="panel" aria-labelledby="log-title">
+        <div class="panel__head">
+          <h2 id="log-title">Записать вручную</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim">для тренировок без счётчика</span>
+        </div>
+        <form id="log-form" novalidate>
+          <div class="formgrid">
+            <div class="field">
+              <label for="log-type"><span>Тип</span></label>
+              <select id="log-type" name="log-type"></select>
             </div>
-            <p class="err" id="log-error" role="alert"></p>
-            <div class="tools">
-              <button class="btn btn--primary" id="log-submit" type="button">Получить опыт</button>
-              <span class="hint" id="exp-preview">Ожидаемый опыт: —</span>
+            <div class="field">
+              <label for="log-minutes"><span>Длительность, мин</span></label>
+              <input type="number" id="log-minutes" name="log-minutes" min="1" max="600" step="1" inputmode="numeric" placeholder="45">
             </div>
-          </form>
-        </section>
-
-        <section class="panel" aria-labelledby="ig-title">
-          <div class="panel__head">
-            <h2 id="ig-title">Контроль честности</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="ig-status"></span>
+            <div class="field">
+              <label for="log-intensity"><span>Интенсивность</span></label>
+              <select id="log-intensity" name="log-intensity"></select>
+            </div>
+            <div class="field wide">
+              <label for="log-note"><span>Заметка (необязательно)</span></label>
+              <textarea id="log-note" name="log-note" maxlength="160" placeholder="Например: круговая на 5 станций, самочувствие нормальное"></textarea>
+            </div>
           </div>
-          <p class="hint" id="ig-note"></p>
-          <div class="loglist" id="ig-list"></div>
-          <p class="hint supnote">Правила: одна запись до 240 минут, до 360 минут и до 6 записей за день. Записи, которые их нарушают, сохраняются в журнале, но опыта и характеристик не дают. Три таких записи замораживают начисление опыта на сутки. Это самопроверка от соблазна накрутить уровень: настоящий античит невозможен без аккаунтов и сервера, которых у офлайн-версии нет.</p>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="panel" aria-labelledby="rem-title">
-          <div class="panel__head">
-            <h2 id="rem-title">Напоминания</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="rem-next"></span>
-          </div>
-          <div class="remrows" id="rem-rows"></div>
-          <p class="err" id="rem-msg" role="status"></p>
+          <p class="err" id="log-error" role="alert"></p>
           <div class="tools">
-            <button class="btn btn--tiny" id="rem-perm" type="button">Разрешить уведомления</button>
-            <button class="btn btn--tiny" id="rem-ics" type="button">Напоминания в календарь (.ics)</button>
+            <button class="btn btn--primary" id="log-submit" type="button">Получить опыт</button>
+            <span class="hint" id="exp-preview">Ожидаемый опыт: —</span>
           </div>
-          <p class="hint supnote">Пока страница закрыта, браузер напомнить не может — это ограничение любого сайта без сервера. Чтобы напоминания приходили на телефон, скачай файл календаря: он добавит ежедневные события в календарь Android или iPhone. Пока страница открыта, Система напоминает сама.</p>
-        </section>
+        </form>
+      </section>
+    </div>
 
-        <section class="panel" aria-labelledby="week-title">
+    <div class="tabpage" id="tab-status" hidden>
+      <section class="panel status" aria-labelledby="status-title">
+        <div>
           <div class="panel__head">
-            <h2 id="week-title">Опыт за 7 дней</h2>
+            <h2 id="status-title">Статус</h2>
             <span class="rule"></span>
+            <span class="lbl lbl--dim" id="status-date"></span>
           </div>
-          <div class="chart" id="chart" role="img" aria-label="Столбчатая диаграмма опыта за последние 7 дней"></div>
-          <div class="chartcap"><span>Максимум: <b id="chart-max" class="num">0</b></span><span id="chart-sum"></span></div>
-        </section>
-
-        <section class="panel" aria-labelledby="sup-title">
-          <div class="panel__head">
-            <h2 id="sup-title">Поддержка и добавки</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="sup-count"></span>
-          </div>
-          <form id="sup-form" novalidate>
-            <div class="formgrid">
-              <div class="field">
-                <label for="sup-kind"><span>Что принял</span></label>
-                <select id="sup-kind" name="sup-kind"></select>
-              </div>
-              <div class="field">
-                <label for="sup-dose"><span>Доза</span></label>
-                <input type="text" id="sup-dose" name="sup-dose" maxlength="16" placeholder="30 г, 2 капсулы" autocomplete="off">
-              </div>
-              <div class="field">
-                <label for="sup-when"><span>Когда</span></label>
-                <select id="sup-when" name="sup-when"></select>
-              </div>
-              <div class="field wide" id="sup-custom-field" hidden>
-                <label for="sup-custom"><span>Своё название</span></label>
-                <input type="text" id="sup-custom" name="sup-custom" maxlength="32" placeholder="Например: гейнер" autocomplete="off">
-              </div>
+          <div class="hunter">
+            <div class="rank" id="rank-badge">
+              <span class="rank__l" id="rank-letter">E</span>
+              <span class="rank__cap">РАНГ</span>
             </div>
-            <p class="err" id="sup-error" role="alert"></p>
-            <div class="tools">
-              <button class="btn btn--primary" id="sup-add" type="button">Отметить приём</button>
-              <span class="hint">Запись появится в списке ниже и попадёт в экспорт данных.</span>
+            <div class="hunter__meta">
+              <span class="hunter__name" id="hunter-name-out">—</span>
+              <span class="hunter__title" id="hunter-title-out">Пробуждённый</span>
+              <span class="hunter__sub" id="hunter-class-out">—</span>
             </div>
-          </form>
-          <div class="supweek" id="sup-week" aria-hidden="true"></div>
-          <div class="loglist" id="sup-list"></div>
-          <p class="hint supnote">Здесь только дневник наблюдений. Система не подбирает добавки и не считает дозы: нужны ли они и сколько — решает врач или тренер, а не приложение. Записанное не заменяет их совет, а дозу бери с упаковки, не выше.</p>
-        </section>
-
-        <section class="panel" aria-labelledby="journal-title">
-          <div class="panel__head">
-            <h2 id="journal-title">Журнал рейдов</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="journal-count"></span>
           </div>
-          <div class="loglist" id="journal"></div>
-        </section>
-
-        <section class="panel" aria-labelledby="ach-title">
-          <div class="panel__head">
-            <h2 id="ach-title">Достижения</h2>
-            <span class="rule"></span>
-            <span class="lbl lbl--dim" id="ach-count"></span>
+          <div class="expbar">
+            <div class="expbar__top">
+              <span>Уровень <b id="level-out" class="num">1</b></span>
+              <span>Опыт <b id="exp-in" class="num">0</b> / <b id="exp-need" class="num">90</b></span>
+            </div>
+            <div class="track" role="progressbar" aria-label="Опыт до следующего уровня" id="exp-bar" aria-valuemin="0" aria-valuemax="90" aria-valuenow="0">
+              <div class="track__fill" id="exp-fill"></div>
+            </div>
+            <div class="rankscale" id="rankscale" aria-hidden="true"></div>
+            <div class="rankscale__cap"><span>E</span><span>D</span><span>C</span><span>B</span><span>A</span><span>S</span><span>EX</span></div>
           </div>
-          <div class="achs" id="achievements"></div>
-        </section>
-
-        <section class="panel">
-          <details class="explain">
-            <summary>Как это работает</summary>
-            <dl>
-              <dt>Опыт</dt>
-              <dd>минуты x 1,6 x коэффициент интенсивности x коэффициент типа тренировки, плюс 15 опыта за первую тренировку дня и бонус за серию дней.</dd>
-              <dt>Уровень</dt>
-              <dd>порог уровня: 90 x уровень^1,15 опыта. Уровень не хранится, а вычисляется из суммарного опыта, поэтому удаление записи корректно пересчитывает статус.</dd>
-              <dt>Ранги</dt>
-              <dd>E — до 9 уровня, D — 10–19, C — 20–29, B — 30–44, A — 45–59, S — 60–79, EX — 80 и выше.</dd>
-              <dt>Характеристики</dt>
-              <dd>СИЛ, ВЫН, СКР, ВОЛ растут от типа тренировок и выполненных квестов, плюс 1 к каждой за уровень. Всё считается из журнала, а не хранится отдельно.</dd>
-              <dt>Квесты</dt>
-              <dd>набор на день выбирается генератором случайных чисел с зерном из даты, поэтому у всех в один день разные, но при перезагрузке страницы набор не меняется.</dd>
-              <dt>Напоминания</dt>
-              <dd>расписание хранится в браузере. Пока страница открыта, Система напоминает сама; для напоминаний при закрытой странице есть файл .ics — его добавляют в календарь телефона, и тогда события приходят как обычные будильники календаря.</dd>
-              <dt>Честность опыта</dt>
-              <dd>записи вне правил (длиннее 240 минут, больше 360 минут или 6 записей в день) сохраняются в журнале без опыта и характеристик; после трёх таких записей начисление опыта замораживается на сутки.</dd>
-              <dt>Поддержка</dt>
-              <dd>приёмы добавок хранятся отдельным журналом и не дают ни опыта, ни характеристик: это дневник наблюдений, а не рекомендация. Приложение ничего не советует и не считает дозы.</dd>
-              <dt>Сеть и сервер</dt>
-              <dd>в офлайн-версии сервера нет, поэтому друзья, таблица лидеров и синхронизация появятся только после подключения проекта Supabase: выполни supabase/schema.sql и впиши URL и публичный anon-ключ в config.js. Опыт на сервере считает только база, клиент его не пишет, поэтому подделать уровень в таблице лидеров нельзя, а заморозку и бан можно снять только из панели Supabase.</dd>
-              <dt>Данные</dt>
-              <dd>localStorage браузера. Экспорт и импорт — обычный JSON-файл с журналом тренировок.</dd>
-            </dl>
-          </details>
-          <div class="tools">
-            <button class="btn btn--tiny" id="export-btn" type="button">Экспорт JSON</button>
-            <button class="btn btn--tiny" id="import-btn" type="button">Импорт JSON</button>
-            <input type="file" id="import-file" accept="application/json,.json" aria-label="Файл сохранения с тренировками (JSON)" hidden>
+          <div class="metrics">
+            <div class="metric"><b id="metric-workouts" class="num">0</b><span>Тренировок</span></div>
+            <div class="metric"><b id="metric-minutes" class="num">0</b><span>Минут всего</span></div>
+            <div class="metric"><b id="metric-streak" class="num">0</b><span>Серия, дней</span></div>
+            <div class="metric"><b id="metric-total-exp" class="num">0</b><span>Опыт всего</span></div>
           </div>
-          <p class="hint" id="io-msg" role="status" style="margin-top:8px"></p>
-        </section>
+        </div>
+        <div class="radarwrap">
+          <p class="lbl lbl--dim">Характеристики</p>
+          <svg class="radar" id="radar" viewBox="0 0 240 240" role="img" aria-label="Диаграмма характеристик охотника" />
+          <p class="alloc" id="alloc-free"></p>
+          <div class="statlist" id="statlist"></div>
+        </div>
+      </section>
+
+      <div class="grid">
+        <div class="stack">
+          <section class="panel" aria-labelledby="week-title">
+            <div class="panel__head">
+              <h2 id="week-title">Опыт за 7 дней</h2>
+              <span class="rule"></span>
+            </div>
+            <div class="chart" id="chart" role="img" aria-label="Столбчатая диаграмма опыта за последние 7 дней"></div>
+            <div class="chartcap"><span>Максимум: <b id="chart-max" class="num">0</b></span><span id="chart-sum"></span></div>
+          </section>
+        </div>
+        <div class="stack">
+          <section class="panel" aria-labelledby="journal-title">
+            <div class="panel__head">
+              <h2 id="journal-title">Журнал рейдов</h2>
+              <span class="rule"></span>
+              <span class="lbl lbl--dim" id="journal-count"></span>
+            </div>
+            <div class="loglist" id="journal"></div>
+          </section>
+        </div>
       </div>
     </div>
-    <section class="panel" id="net-panel" aria-labelledby="net-title">
-      <div class="panel__head">
-        <h2 id="net-title">Сеть</h2>
-        <span class="rule"></span>
-        <span class="lbl lbl--dim" id="net-status"></span>
-      </div>
-      <div class="netgrid">
-        <div>
-          <p class="lbl lbl--dim">Аккаунт и синхронизация</p>
-          <div class="netcol">
-            <div class="field">
-              <label for="net-email"><span>Почта</span></label>
-              <input type="text" id="net-email" autocomplete="username" placeholder="you@example.com">
+
+    <div class="tabpage" id="tab-net" hidden>
+      <section class="panel" aria-labelledby="net-title">
+        <div class="panel__head">
+          <h2 id="net-title">Сеть</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim" id="net-status"></span>
+        </div>
+        <div class="netgrid">
+          <div>
+            <p class="lbl lbl--dim">Аккаунт и синхронизация</p>
+            <div class="netcol">
+              <div class="field">
+                <label for="net-email"><span>Почта</span></label>
+                <input type="text" id="net-email" autocomplete="username" placeholder="you@example.com">
+              </div>
+              <div class="field">
+                <label for="net-pass"><span>Пароль</span></label>
+                <input type="password" id="net-pass" autocomplete="current-password" placeholder="минимум 6 символов">
+              </div>
+              <div class="field" id="net-nick-row">
+                <label for="net-nick"><span>Ник охотника</span></label>
+                <input type="text" id="net-nick" maxlength="24" autocomplete="off" placeholder="как тебя увидят в таблице">
+              </div>
+              <div class="tools">
+                <button class="btn btn--tiny btn--primary" id="net-signup" type="button">Создать аккаунт</button>
+                <button class="btn btn--tiny" id="net-signin" type="button">Войти</button>
+                <button class="btn btn--tiny btn--ghost" id="net-signout" type="button" hidden>Выйти</button>
+                <button class="btn btn--tiny" id="net-push" type="button" hidden>Выгрузить журнал</button>
+                <button class="btn btn--tiny" id="net-pull" type="button" hidden>Подтянуть с сервера</button>
+              </div>
+              <p class="hint" id="net-who"></p>
             </div>
-            <div class="field">
-              <label for="net-pass"><span>Пароль</span></label>
-              <input type="password" id="net-pass" autocomplete="current-password" placeholder="минимум 6 символов">
+          </div>
+          <div>
+            <p class="lbl lbl--dim">Друзья</p>
+            <div class="netcol">
+              <div class="tools" id="net-friend-tools">
+                <input type="text" id="net-friend-nick" maxlength="24" placeholder="ник охотника" aria-label="Ник охотника для заявки в друзья">
+                <button class="btn btn--tiny" id="net-friend-add" type="button">Добавить</button>
+              </div>
+              <div class="loglist" id="net-friends-list"></div>
             </div>
-            <div class="field" id="net-nick-row">
-              <label for="net-nick"><span>Ник охотника</span></label>
-              <input type="text" id="net-nick" maxlength="24" autocomplete="off" placeholder="как тебя увидят в таблице">
+          </div>
+          <div>
+            <p class="lbl lbl--dim">Таблица лидеров</p>
+            <div class="netcol">
+              <div class="loglist" id="net-leaders-list"></div>
+            </div>
+          </div>
+          <div>
+            <p class="lbl lbl--dim">Честность и баны</p>
+            <div class="netcol">
+              <p class="hint" id="net-mod"></p>
+              <div class="loglist" id="net-viol-list"></div>
+            </div>
+          </div>
+        </div>
+        <p class="err" id="net-msg" role="status"></p>
+        <p class="hint supnote" id="net-note"></p>
+      </section>
+    </div>
+
+    <div class="tabpage" id="tab-more" hidden>
+      <div class="grid">
+        <div class="stack">
+          <section class="panel" aria-labelledby="rem-title">
+            <div class="panel__head">
+              <h2 id="rem-title">Напоминания</h2>
+              <span class="rule"></span>
+              <span class="lbl lbl--dim" id="rem-next"></span>
+            </div>
+            <div class="remrows" id="rem-rows"></div>
+            <p class="err" id="rem-msg" role="status"></p>
+            <div class="tools">
+              <button class="btn btn--tiny" id="rem-perm" type="button">Разрешить уведомления</button>
+              <button class="btn btn--tiny" id="rem-ics" type="button">Напоминания в календарь (.ics)</button>
+              <button class="btn btn--tiny btn--ghost" id="sfx-toggle" type="button">Звук: вкл</button>
+            </div>
+            <p class="hint supnote">Пока страница закрыта, браузер напомнить не может. Чтобы напоминания приходили на телефон, скачай файл календаря — он добавит ежедневные события в календарь Android или iPhone.</p>
+          </section>
+
+          <section class="panel" aria-labelledby="sup-title">
+            <div class="panel__head">
+              <h2 id="sup-title">Поддержка и добавки</h2>
+              <span class="rule"></span>
+              <span class="lbl lbl--dim" id="sup-count"></span>
+            </div>
+            <form id="sup-form" novalidate>
+              <div class="formgrid">
+                <div class="field">
+                  <label for="sup-kind"><span>Что принял</span></label>
+                  <select id="sup-kind" name="sup-kind"></select>
+                </div>
+                <div class="field">
+                  <label for="sup-dose"><span>Доза</span></label>
+                  <input type="text" id="sup-dose" name="sup-dose" maxlength="16" placeholder="30 г, 2 капсулы" autocomplete="off">
+                </div>
+                <div class="field">
+                  <label for="sup-when"><span>Когда</span></label>
+                  <select id="sup-when" name="sup-when"></select>
+                </div>
+                <div class="field wide" id="sup-custom-field" hidden>
+                  <label for="sup-custom"><span>Своё название</span></label>
+                  <input type="text" id="sup-custom" name="sup-custom" maxlength="32" placeholder="Например: гейнер" autocomplete="off">
+                </div>
+              </div>
+              <p class="err" id="sup-error" role="alert"></p>
+              <div class="tools">
+                <button class="btn btn--primary" id="sup-add" type="button">Отметить приём</button>
+              </div>
+            </form>
+            <div class="supweek" id="sup-week" aria-hidden="true"></div>
+            <div class="loglist" id="sup-list"></div>
+            <p class="hint supnote">Здесь только дневник наблюдений. Система не подбирает добавки и не считает дозы: нужны ли они и сколько — решает врач или тренер, а не приложение. Записанное не заменяет их совет, а дозу бери с упаковки, не выше.</p>
+          </section>
+        </div>
+
+        <div class="stack">
+          <section class="panel" aria-labelledby="ig-title">
+            <div class="panel__head">
+              <h2 id="ig-title">Контроль честности</h2>
+              <span class="rule"></span>
+              <span class="lbl lbl--dim" id="ig-status"></span>
+            </div>
+            <p class="hint" id="ig-note"></p>
+            <div class="loglist" id="ig-list"></div>
+            <p class="hint supnote">Правила: одна запись до 240 минут, до 360 минут и до 6 записей за день. Записи, которые их нарушают, сохраняются в журнале, но опыта и характеристик не дают. Три таких записи замораживают начисление опыта на сутки.</p>
+          </section>
+
+          <section class="panel" aria-labelledby="ach-title">
+            <div class="panel__head">
+              <h2 id="ach-title">Достижения</h2>
+              <span class="rule"></span>
+              <span class="lbl lbl--dim" id="ach-count"></span>
+            </div>
+            <div class="achs" id="achievements"></div>
+          </section>
+
+          <section class="panel" aria-labelledby="data-title">
+            <div class="panel__head">
+              <h2 id="data-title">Данные</h2>
+              <span class="rule"></span>
             </div>
             <div class="tools">
-              <button class="btn btn--tiny btn--primary" id="net-signup" type="button">Создать аккаунт</button>
-              <button class="btn btn--tiny" id="net-signin" type="button">Войти</button>
-              <button class="btn btn--tiny btn--ghost" id="net-signout" type="button" hidden>Выйти</button>
-              <button class="btn btn--tiny" id="net-push" type="button" hidden>Выгрузить журнал</button>
-              <button class="btn btn--tiny" id="net-pull" type="button" hidden>Подтянуть с сервера</button>
+              <button class="btn btn--tiny" id="export-btn" type="button">Экспорт JSON</button>
+              <button class="btn btn--tiny" id="import-btn" type="button">Импорт JSON</button>
+              <input type="file" id="import-file" accept="application/json,.json" aria-label="Файл сохранения с тренировками (JSON)" hidden>
             </div>
-            <p class="hint" id="net-who"></p>
-          </div>
-        </div>
-        <div>
-          <p class="lbl lbl--dim">Друзья</p>
-          <div class="netcol">
-            <div class="tools" id="net-friend-tools">
-              <input type="text" id="net-friend-nick" maxlength="24" placeholder="ник охотника" aria-label="Ник охотника для заявки в друзья">
-              <button class="btn btn--tiny" id="net-friend-add" type="button">Добавить</button>
-            </div>
-            <div class="loglist" id="net-friends-list"></div>
-          </div>
-        </div>
-        <div>
-          <p class="lbl lbl--dim">Таблица лидеров</p>
-          <div class="netcol">
-            <div class="loglist" id="net-leaders-list"></div>
-          </div>
-        </div>
-        <div>
-          <p class="lbl lbl--dim">Честность и баны</p>
-          <div class="netcol">
-            <p class="hint" id="net-mod"></p>
-            <div class="loglist" id="net-viol-list"></div>
-          </div>
+            <p class="hint" id="io-msg" role="status" style="margin-top:8px"></p>
+          </section>
+
+          <section class="panel">
+            <details class="explain">
+              <summary>Как это работает</summary>
+              <dl>
+                <dt>Квест</dt>
+                <dd>три задания на день с дедлайном до полуночи. Не закрыл все — провал: серия прерывается, появляется штрафное задание, а опыт режется на 30%, пока штраф не закрыт.</dd>
+                <dt>Тренировка</dt>
+                <dd>счётчик повторов и таймер отдыха: считает только то, что нажато; по завершении подходы и повторы уходят в журнал и превращаются в опыт.</dd>
+                <dt>Опыт</dt>
+                <dd>минуты x 1,6 x коэффициент интенсивности x коэффициент типа тренировки, плюс 15 опыта за первую тренировку дня и бонус за серию дней.</dd>
+                <dt>Уровень</dt>
+                <dd>порог уровня: 90 x уровень^1,15 опыта. Уровень не хранится, а вычисляется из суммарного опыта. За каждый уровень дают 2 очка характеристик.</dd>
+                <dt>Ранги</dt>
+                <dd>E — до 9 уровня, D — 10–19, C — 20–29, B — 30–44, A — 45–59, S — 60–79, EX — 80 и выше.</dd>
+                <dt>Характеристики</dt>
+                <dd>СИЛ, ВЫН, СКР, ВОЛ: база, бонус класса, вклад тренировок и квестов, плюс очки, которые ты распределяешь сам.</dd>
+                <dt>Напоминания</dt>
+                <dd>три точки расписания; для напоминаний при закрытой странице есть файл .ics — его добавляют в календарь телефона.</dd>
+                <dt>Честность</dt>
+                <dd>записи вне правил (длиннее 240 минут, больше 360 минут или 6 записей в день) сохраняются без опыта; после трёх таких записей начисление замораживается на сутки.</dd>
+                <dt>Сеть</dt>
+                <dd>аккаунты, друзья, таблица лидеров и баны работают через Supabase: опыт считает только база, подделать его из клиента нельзя.</dd>
+                <dt>Данные</dt>
+                <dd>localStorage браузера и экспорт в JSON. Приложение работает офлайн, синхронизация включается кнопками вручную.</dd>
+              </dl>
+            </details>
+          </section>
         </div>
       </div>
-      <p class="err" id="net-msg" role="status"></p>
-      <p class="hint supnote" id="net-note"></p>
-    </section>
+    </div>
   </main>
 
   <footer>
-    <span>СИСТЕМА v1.0 — интерфейс охотника</span>
+    <span>СИСТЕМА v2.0 — интерфейс охотника</span>
     <span>Тренируйся по самочувствию. Отдых — тоже часть системы.</span>
   </footer>
 </div>
@@ -719,6 +853,31 @@ var LIMITS = {
   flagsForFreeze: 3,
   freezeHours: 24
 };
+
+var POINTS_PER_LEVEL = 2;
+
+var PENALTY = {
+  mul: 0.7,
+  target: 100,
+  step: 10,
+  stat: 'str',
+  exp: 40
+};
+
+var PRESETS = [
+  { id: 'pushups', name: 'Отжимания', unit: 'повторений', type: 'power', sets: 5, reps: 20, rest: 60, step: 1 },
+  { id: 'situps', name: 'Пресс', unit: 'повторений', type: 'power', sets: 5, reps: 30, rest: 60, step: 1 },
+  { id: 'squats', name: 'Приседания', unit: 'повторений', type: 'power', sets: 5, reps: 30, rest: 60, step: 1 },
+  { id: 'plank', name: 'Планка', unit: 'секунд', type: 'power', sets: 3, reps: 60, rest: 60, step: 5 },
+  { id: 'burpees', name: 'Бёрпи', unit: 'повторений', type: 'power', sets: 4, reps: 15, rest: 75, step: 1 },
+  { id: 'run', name: 'Бег', unit: 'минут', type: 'run', sets: 1, reps: 20, rest: 0, step: 1 }
+];
+
+function presetById(id) {
+  var found = null;
+  PRESETS.forEach(function (p) { if (p.id === id) found = p; });
+  return found;
+}
 
 var REMIND_KEYS = ['train', 'supp', 'day'];
 
@@ -864,7 +1023,19 @@ function rankOf(level) {
 }
 
 function defaultState() {
-  return { v: 1, hunter: null, workouts: [], supps: [], quests: {}, ach: {}, remind: remindDefaults(), bestStreak: 0 };
+  return {
+    v: 2,
+    hunter: null,
+    workouts: [],
+    supps: [],
+    quests: {},
+    ach: {},
+    remind: remindDefaults(),
+    alloc: { str: 0, vit: 0, agi: 0, wil: 0 },
+    sound: true,
+    session: null,
+    bestStreak: 0
+  };
 }
 
 function loadState() {
@@ -881,6 +1052,9 @@ function loadState() {
     s.quests = parsed.quests && typeof parsed.quests === 'object' ? parsed.quests : {};
     s.ach = parsed.ach && typeof parsed.ach === 'object' ? parsed.ach : {};
     s.remind = Object.assign(remindDefaults(), parsed.remind && typeof parsed.remind === 'object' ? parsed.remind : {});
+    s.alloc = Object.assign({ str: 0, vit: 0, agi: 0, wil: 0 }, parsed.alloc && typeof parsed.alloc === 'object' ? parsed.alloc : {});
+    s.sound = parsed.sound === undefined ? true : !!parsed.sound;
+    s.session = parsed.session && typeof parsed.session === 'object' ? parsed.session : null;
     s.bestStreak = Number(parsed.bestStreak) || 0;
     return s;
   } catch (e) { return defaultState(); }
@@ -943,6 +1117,61 @@ function dayAllDone(day) {
   return day.items.length > 0 && day.items.every(function (it) { return it.done; });
 }
 
+function resolveDays() {
+  var today = todayKey();
+  var failed = [];
+  Object.keys(state.quests).forEach(function (k) {
+    if (k >= today) return;
+    var day = state.quests[k];
+    if (!day || !Array.isArray(day.items) || !day.items.length) return;
+    if (dayAllDone(day) || day.failed) return;
+    day.failed = true;
+    day.failedAt = new Date().toISOString();
+    failed.push(k);
+  });
+  return failed;
+}
+
+function penaltyState() {
+  var today = todayKey();
+  var from = null;
+  Object.keys(state.quests).sort().forEach(function (k) {
+    if (from || k >= today) return;
+    var day = state.quests[k];
+    if (!day || !day.failed || day.penaltyCleared) return;
+    if (k < shiftDays(today, -7)) return;
+    from = k;
+  });
+  return { active: !!from, from: from, day: from ? state.quests[from] : null };
+}
+
+function expMultiplier() {
+  return penaltyState().active ? PENALTY.mul : 1;
+}
+
+function spentPoints() {
+  var n = 0;
+  Object.keys(state.alloc).forEach(function (k) { n += state.alloc[k] || 0; });
+  return n;
+}
+
+function freePoints() {
+  return Math.max(0, (derive().level - 1) * POINTS_PER_LEVEL - spentPoints());
+}
+
+function addPenaltyProgress(points) {
+  var st = penaltyState();
+  if (!st.active) return { done: false };
+  var day = st.day;
+  var before = day.penaltyProgress || 0;
+  day.penaltyProgress = Math.min(PENALTY.target, before + points);
+  if (day.penaltyProgress >= PENALTY.target) {
+    day.penaltyCleared = true;
+    return { done: true };
+  }
+  return { done: false };
+}
+
 function dayExp(key) {
   var total = 0;
   state.workouts.forEach(function (w) { if (dateKey(new Date(w.at)) === key) total += w.exp || 0; });
@@ -950,8 +1179,23 @@ function dayExp(key) {
   if (day) {
     day.items.forEach(function (it) { if (it.done) total += it.exp; });
     if (dayAllDone(day)) total += DAY_BONUS;
+    if (day.penaltyCleared) total += PENALTY.exp;
   }
   return total;
+}
+
+function midnightLeft(now) {
+  var d = now || new Date();
+  var end = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 0, 0);
+  return Math.max(0, end.getTime() - d.getTime());
+}
+
+function countdownText(ms) {
+  var total = Math.floor(ms / 1000);
+  var h = Math.floor(total / 3600);
+  var m = Math.floor((total % 3600) / 60);
+  var s = total % 60;
+  return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
 }
 
 function derive() {
@@ -980,6 +1224,7 @@ function derive() {
       if (it.done) { questsDone++; totalExp += it.exp; }
     });
     if (dayAllDone(day)) { totalExp += DAY_BONUS; questDates[key] = true; }
+    if (day.penaltyCleared) { totalExp += PENALTY.exp; questDates[key] = true; }
   });
 
   Object.keys(state.ach).forEach(function (id) { totalExp += (state.ach[id] && state.ach[id].exp) || 0; });
@@ -1003,7 +1248,9 @@ function derive() {
     if (!day || !Array.isArray(day.items)) return;
     day.items.forEach(function (it) { if (it.done) stats[it.stat] += 1; });
   });
-  STATS.forEach(function (s) { stats[s.key] = Math.min(STAT_CAP, stats[s.key] + li.level - 1); });
+  STATS.forEach(function (s) {
+    stats[s.key] = Math.min(STAT_CAP, stats[s.key] + (state.alloc[s.key] || 0));
+  });
 
   var active = {};
   state.workouts.forEach(function (w) { active[dateKey(new Date(w.at))] = true; });
@@ -1442,12 +1689,105 @@ function renderRadar(stats) {
 }
 
 function renderStatList(stats) {
+  var free = freePoints();
+  $('alloc-free').textContent = free > 0
+    ? 'Свободных очков: ' + free + ' — распредели по характеристикам'
+    : 'Свободные очки дают за каждый уровень';
   $('statlist').innerHTML = STATS.map(function (s) {
     var v = stats[s.key], pct = Math.min(100, Math.round(v / 60 * 100));
     return '<div class="statrow"><span>' + s.label + '</span>' +
       '<span class="stbar"><i style="width:' + pct + '%"></i></span>' +
-      '<b class="num">' + v + '</b></div>';
+      '<b class="num">' + v + '</b>' +
+      '<button class="btn btn--tiny allocbtn" type="button" data-act="alloc" data-stat="' + s.key + '"' +
+      (free > 0 ? '' : ' disabled') + ' aria-label="Добавить очко в характеристику ' + s.full + '">+</button>' +
+      '</div>';
   }).join('');
+}
+
+var activeTab = 'quest';
+
+function showTab(name) {
+  activeTab = name;
+  ['quest', 'train', 'status', 'net', 'more'].forEach(function (t) {
+    var page = $('tab-' + t);
+    if (page) page.hidden = (t !== name);
+  });
+  var tabs = $('tabs');
+  if (tabs) {
+    Array.prototype.forEach.call(tabs.querySelectorAll('button[data-tab]'), function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-tab') === name);
+    });
+  }
+}
+
+function renderDaily() {
+  var day = questsFor(todayKey());
+  var done = day.items.filter(function (it) { return it.done; }).length;
+  $('quest-timer').textContent = countdownText(midnightLeft());
+
+  var st = penaltyState();
+  if (st.active) $('quest-state').innerHTML = '<span class="deadline__bad">ПРОВАЛ · ШТРАФ АКТИВЕН</span>';
+  else if (done === day.items.length) $('quest-state').innerHTML = '<span class="deadline__ok">КВЕСТ ВЫПОЛНЕН</span>';
+  else $('quest-state').textContent = 'выполнено ' + done + ' из ' + day.items.length;
+
+  var panel = $('penalty-panel');
+  if (!st.active) {
+    panel.hidden = true;
+    $('penalty-list').innerHTML = '';
+    return;
+  }
+  panel.hidden = false;
+  $('penalty-when').textContent = humanDate(st.from);
+  $('penalty-text').textContent = 'Ежедневный квест на ' + humanDate(st.from) +
+    ' не был закрыт до полуночи. Пока штраф не снят: опыт за тренировки режется на 30%, серия обнулена.';
+  var prog = st.day.penaltyProgress || 0;
+  var pct = Math.round(prog / PENALTY.target * 100);
+  $('penalty-list').innerHTML =
+    '<div class="quest is-penalty">' +
+      '<div class="quest__top">' +
+        '<span class="quest__name">Штрафное задание</span>' +
+        '<span class="quest__stat">СИЛ +1</span>' +
+        '<span class="quest__exp">+' + PENALTY.exp + ' опыта за снятие</span>' +
+      '</div>' +
+      '<div class="quest__row">' +
+        '<span class="quest__prog" id="penalty-progress"><b>' + prog + '</b> / ' + PENALTY.target + ' повт.</span>' +
+        '<span class="questbar"><i style="width:' + pct + '%"></i></span>' +
+      '</div>' +
+      '<div class="quest__row">' +
+        '<button class="btn btn--tiny" type="button" data-act="penalty-plus">+' + PENALTY.step + ' повт.</button>' +
+        '<button class="btn btn--tiny btn--primary" type="button" data-act="penalty-done">Снять штраф</button>' +
+      '</div>' +
+    '</div>';
+}
+
+function renderWorkout() {
+  var s = state.session;
+  $('wk-presets').innerHTML = PRESETS.map(function (p) {
+    var on = s && !s.finished && s.preset === p.id;
+    return '<button class="preset' + (on ? ' is-on' : '') + '" type="button" data-preset="' + p.id + '">' +
+      '<span class="preset__n">' + esc(p.name) + '</span>' +
+      '<span class="preset__d">' + p.sets + ' × ' + p.reps + ' · отдых ' + p.rest + ' с</span>' +
+      '</button>';
+  }).join('');
+
+  var live = !!(s && !s.finished);
+  $('wk-session').hidden = !live;
+  $('wk-rest').hidden = !(live && s.resting);
+  if (!live) {
+    $('wk-state').textContent = 'не начата';
+    return;
+  }
+  var p = presetById(s.preset) || {};
+  $('wk-set').textContent = 'Подход ' + Math.min(s.set, s.sets) + ' из ' + s.sets + ' · ' + (p.name || '');
+  $('wk-reps').textContent = s.setReps;
+  $('wk-units').textContent = p.unit || '';
+  $('wk-rest-num').textContent = s.restLeft;
+  $('wk-state').textContent = 'идёт: ' + s.totalReps + ' ' + (p.unit || '') + ' · ' + sessionMinutes(s) + ' мин';
+}
+
+function sessionMinutes(s) {
+  if (!s || !s.startedAt) return 0;
+  return Math.max(1, Math.round((Date.now() - new Date(s.startedAt).getTime()) / 60000));
 }
 
 function renderQuests(d) {
@@ -1654,6 +1994,8 @@ function renderAll() {
   renderRadar(d.stats);
   renderStatList(d.stats);
   renderQuests(d);
+  renderDaily();
+  renderWorkout();
   renderReminders();
   renderSupps();
   renderIntegrity();
@@ -1662,6 +2004,7 @@ function renderAll() {
   renderAchievements();
   renderExpPreview();
   renderStorageChip();
+  showTab(activeTab);
 }
 
 function commit() {
@@ -2192,6 +2535,9 @@ function importData(file) {
         quests: parsed.quests && typeof parsed.quests === 'object' ? parsed.quests : {},
         ach: parsed.ach && typeof parsed.ach === 'object' ? parsed.ach : {},
         remind: Object.assign(remindDefaults(), parsed.remind && typeof parsed.remind === 'object' ? parsed.remind : {}),
+        alloc: Object.assign({ str: 0, vit: 0, agi: 0, wil: 0 }, parsed.alloc && typeof parsed.alloc === 'object' ? parsed.alloc : {}),
+        sound: parsed.sound === undefined ? true : !!parsed.sound,
+        session: parsed.session && typeof parsed.session === 'object' ? parsed.session : null,
         bestStreak: Number(parsed.bestStreak) || 0
       };
       saveState();
@@ -2344,26 +2690,261 @@ function useReminderRow(e) {
   renderReminders();
 }
 
+function beep(freq, ms) {
+  if (!state.sound) return;
+  try {
+    var Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return;
+    var ctx = beep.ctx || (beep.ctx = new Ctor());
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.05;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    window.setTimeout(function () { try { osc.stop(); } catch (e) { /* уже остановлен */ } }, ms);
+  } catch (e) { /* звук недоступен */ }
+}
+
+function sfx(freq) {
+  beep(freq || 660, 90);
+}
+
+function refreshSfxButton() {
+  $('sfx-toggle').textContent = state.sound ? 'Звук: вкл' : 'Звук: выкл';
+}
+
+function toggleSound() {
+  state.sound = !state.sound;
+  saveState();
+  refreshSfxButton();
+  if (state.sound) sfx(880);
+  note('Звук', state.sound ? 'Включён' : 'Выключен', ['Щелчки и сигналы таймера'], 'ok');
+}
+
+function startSession(id) {
+  var p = presetById(id);
+  if (!p) return;
+  state.session = {
+    preset: p.id, sets: p.sets, reps: p.reps, rest: p.rest,
+    set: 1, setReps: 0, totalReps: 0, resting: false, restLeft: 0,
+    startedAt: new Date().toISOString(), finished: false
+  };
+  saveState();
+  renderAll();
+  sfx(600);
+  note('Тренировка начата', p.name, [p.sets + ' подходов по ' + p.reps + ' ' + p.unit]);
+}
+
+function addReps(delta) {
+  var s = state.session;
+  if (!s || s.finished) return;
+  s.setReps = Math.max(0, s.setReps + delta);
+  if (delta > 0) sfx(520);
+  saveState();
+  renderWorkout();
+}
+
+function closeSet() {
+  var s = state.session;
+  if (!s || s.finished) return;
+  if (s.setReps <= 0) {
+    $('wk-msg').className = 'err';
+    $('wk-msg').textContent = 'Сначала нажми +1 хотя бы один раз.';
+    return;
+  }
+  $('wk-msg').textContent = '';
+  s.totalReps += s.setReps;
+  s.setReps = 0;
+  sfx(720);
+  if (s.set >= s.sets) { finishSession(); return; }
+  s.set++;
+  if (s.rest > 0) { s.resting = true; s.restLeft = s.rest; }
+  saveState();
+  renderAll();
+}
+
+function skipRest() {
+  var s = state.session;
+  if (!s || s.finished) return;
+  s.resting = false;
+  s.restLeft = 0;
+  saveState();
+  renderAll();
+}
+
+function cancelSession() {
+  if (!state.session) return;
+  state.session = null;
+  saveState();
+  renderAll();
+  note('Тренировка отменена', 'Запись не создана');
+}
+
+function finishSession() {
+  var s = state.session;
+  if (!s || s.finished) return;
+  if (s.setReps > 0) { s.totalReps += s.setReps; s.setReps = 0; }
+  s.finished = true;
+
+  var p = presetById(s.preset) || {};
+  var minutes = sessionMinutes(s);
+  var reasons = checkPlausibility(minutes);
+  var frozen = freezeUntil();
+  if (frozen) reasons.push('заморозка начисления до ' + pad2(frozen.getHours()) + ':' + pad2(frozen.getMinutes()));
+  var flag = reasons.length ? reasons.join('; ') : null;
+  var first = !hasWorkoutToday();
+  var base = expFor(minutes, p.type || 'power', 'mid', first);
+  var repsBonus = Math.min(60, Math.round(s.totalReps / 2));
+  var exp = flag ? 0 : Math.round((base + repsBonus) * expMultiplier());
+
+  state.workouts.push({
+    id: 'w' + Date.now(),
+    at: new Date().toISOString(),
+    type: p.type || 'power',
+    minutes: minutes,
+    intensity: 'mid',
+    note: 'Тренировка: ' + s.set + ' подх., ' + s.totalReps + ' ' + (p.unit || ''),
+    exp: exp,
+    flag: flag
+  });
+  state.session = null;
+  commit();
+  sfx(940);
+
+  if (flag) {
+    note('Запись на проверке', 'Опыт не начислен', [flag], 'ember');
+    return;
+  }
+  var lines = [s.totalReps + ' ' + (p.unit || '') + ' за ' + minutes + ' мин'];
+  if (expMultiplier() < 1) lines.push('Штрафная зона: опыт снижен на 30%');
+  note('Опыт получен', '+' + exp, lines);
+}
+
+function penaltyAction(act) {
+  var st = penaltyState();
+  if (!st.active) return;
+  if (act === 'penalty-plus') {
+    var res = addPenaltyProgress(PENALTY.step);
+    if (res.done) {
+      note('Штраф снят', 'Штрафное задание закрыто', ['+' + PENALTY.exp + ' опыта', 'Опыт снова полный'], 'ok');
+      sfx(940);
+    } else {
+      sfx(500);
+    }
+  } else if (act === 'penalty-done') {
+    st.day.penaltyProgress = PENALTY.target;
+    st.day.penaltyCleared = true;
+    note('Штраф снят', 'Штрафное задание закрыто', ['+' + PENALTY.exp + ' опыта'], 'ok');
+    sfx(940);
+  }
+  commit();
+}
+
+function allocPoint(statKey) {
+  if (freePoints() <= 0) return;
+  state.alloc[statKey] = (state.alloc[statKey] || 0) + 1;
+  sfx(620);
+  commit();
+}
+
+function tick() {
+  var now = new Date();
+  if (document.visibilityState !== 'hidden') {
+    $('quest-timer').textContent = countdownText(midnightLeft(now));
+  }
+  var s = state.session;
+  if (s && !s.finished && s.resting) {
+    s.restLeft -= 1;
+    if (s.restLeft <= 0) {
+      s.resting = false;
+      s.restLeft = 0;
+      saveState();
+      sfx(880);
+      note('Отдых окончен', 'Следующий подход', [], 'ok');
+      renderWorkout();
+    } else {
+      $('wk-rest-num').textContent = s.restLeft;
+    }
+  }
+}
+
 function watchDayChange() {
   var current = todayKey();
   window.setInterval(function () {
     var now = todayKey();
     if (now !== current) {
       current = now;
+      var failed = resolveDays();
       questsFor(now);
       commit();
-      note('Новый день', 'Ежедневный квест обновлён', ['Три новых задания ждут охотника']);
+      note('Новый день', 'Ежедневный квест обновлён', ['Три новых задания до полуночи']);
+      if (failed.length) {
+        note('Провал квеста', 'Ежедневный квест не был закрыт', ['Серия обнулена, включена штрафная зона'], 'ember');
+      }
     }
   }, 60000);
 }
+
+window.addEventListener('error', function (e) {
+  var el = document.getElementById('gate-error');
+  if (el) {
+    el.className = 'err';
+    el.textContent = 'Ошибка: ' + (e && e.message ? e.message : 'неизвестная');
+  }
+});
 
 function init() {
   state = loadState();
   renderStorageChip();
   renderGateClasses();
   fillSelects();
+  var failedDays = resolveDays();
   questsFor(todayKey());
   renderAll();
+
+  $('tabs').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-tab]') : null;
+    if (!b) return;
+    showTab(b.getAttribute('data-tab'));
+    sfx(480);
+  });
+
+  $('wk-presets').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-preset]') : null;
+    if (!b) return;
+    var id = b.getAttribute('data-preset');
+    var cur = state.session;
+    if (cur && !cur.finished && cur.preset === id) return;
+    startSession(id);
+  });
+  $('wk-plus1').addEventListener('click', function () { addReps(1); });
+  $('wk-plus5').addEventListener('click', function () { addReps(5); });
+  $('wk-minus').addEventListener('click', function () { addReps(-1); });
+  $('wk-set-done').addEventListener('click', closeSet);
+  $('wk-finish').addEventListener('click', finishSession);
+  $('wk-skip-rest').addEventListener('click', skipRest);
+
+  $('penalty-list').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+    if (!b) return;
+    penaltyAction(b.getAttribute('data-act'));
+  });
+
+  $('statlist').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-act="alloc"]') : null;
+    if (!b || b.disabled) return;
+    allocPoint(b.getAttribute('data-stat'));
+  });
+
+  $('sfx-toggle').addEventListener('click', toggleSound);
+  refreshSfxButton();
+
+  if (failedDays.length) {
+    note('Провал квеста', 'Ежедневный квест не был закрыт', ['Серия обнулена, включена штрафная зона', 'Опыт за тренировки −30%'], 'ember');
+  }
 
   $('start-btn').addEventListener('click', gateSubmit);
   $('gate-form').addEventListener('submit', gateSubmit);
@@ -2442,6 +3023,7 @@ function init() {
   watchDayChange();
   reminderTick();
   window.setInterval(reminderTick, 30000);
+  window.setInterval(tick, 1000);
   netInit();
 }
 
