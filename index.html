@@ -691,6 +691,7 @@ footer{
               </div>
               <div class="tools">
                 <button class="btn btn--tiny" id="net-check" type="button">Проверить связь</button>
+                <button class="btn btn--tiny btn--primary" id="net-retry" type="button">Повторить</button>
                 <span class="hint" id="net-host"></span>
               </div>
               <p class="hint" id="net-who"></p>
@@ -716,6 +717,9 @@ footer{
           <span class="lbl lbl--dim" id="lead-state"></span>
         </div>
         <p class="err" id="lead-msg" role="status"></p>
+        <div class="tools">
+          <button class="btn btn--tiny" id="lead-retry" type="button">Обновить данные</button>
+        </div>
         <div class="grid">
           <div class="stack">
             <p class="lbl lbl--dim">Топ всех охотников</p>
@@ -1603,17 +1607,17 @@ function sbHost() {
   return sbConfigured() ? CONFIG.supabaseUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : 'сервер не настроен';
 }
 
-var SB_NET_HINT = 'Браузер не смог связаться с сервером. Это не ошибка ввода — запрос даже не дошёл. ' +
-  'Частые причины: нет интернета, домен не пускает сеть или DNS провайдера, мешает блокировщик рекламы или расширение браузера. ' +
-  'Проверить просто: открой в новой вкладке https://{HOST}/rest/v1/ — если страница не открывается, запросы из приложения тоже не пройдут. ' +
+var SB_NET_HINT = 'Браузер не смог связаться с сервером за отведённое время. ' +
+  'Чаще всего причина — очень медленное или нестабильное соединение: запрос уходит, но ответ не успевает вернуться. ' +
+  'Что можно сделать: нажать «Повторить», подождать и попробовать снова, переключиться на Wi-Fi или мобильный интернет. ' +
+  'Проверить самому: открой в новой вкладке https://{HOST}/auth/v1/health — если страница открывается не сразу, дело в скорости. ' +
   'Важно: тренировки, квесты, штрафная зона, добавки и статистика работают и без сервера. Сеть нужна только для входа в аккаунт, друзей, рейтинга и синхронизации.';
 
 function sbReachHint() {
   return SB_NET_HINT.replace('{HOST}', sbHost());
 }
 
-function sbFetch(path, options, timeoutMs) {
-  var limit = timeoutMs || 12000;
+function sbOnce(path, options, limit) {
   var opts = {};
   Object.keys(options || {}).forEach(function (k) { opts[k] = options[k]; });
   var ctrl = null;
@@ -1629,13 +1633,24 @@ function sbFetch(path, options, timeoutMs) {
     window.clearTimeout(timer);
     var e = new Error('network');
     e.network = true;
-    if (err && err.name === 'AbortError') {
-      e.message = 'Сервер не ответил за ' + Math.round(limit / 1000) + ' секунд.';
-    } else {
-      e.message = 'Нет связи с сервером.';
-    }
+    e.timeout = !!(err && err.name === 'AbortError');
+    e.message = e.timeout
+      ? 'Сервер не ответил за ' + Math.round(limit / 1000) + ' секунд.'
+      : 'Нет связи с сервером.';
     e.original = err;
     throw e;
+  });
+}
+
+// Медленный интернет: одна повторная попытка с увеличенным ожиданием —
+// на тонком канале первый запрос часто не успевает.
+function sbFetch(path, options, timeoutMs, tries) {
+  var limit = timeoutMs || 30000;
+  var left = tries === undefined ? 2 : tries;
+  return sbOnce(path, options, limit).catch(function (err) {
+    if (!err.network || left <= 1) throw err;
+    return new Promise(function (resolve) { window.setTimeout(resolve, 900); })
+      .then(function () { return sbFetch(path, options, Math.round(limit * 1.5), left - 1); });
   });
 }
 
@@ -1650,7 +1665,7 @@ function sbErrorText(err) {
 
 function sbSelfCheck() {
   var started = Date.now();
-  return sbFetch('/auth/v1/health', { method: 'GET', headers: SB.headers(false) }, 10000)
+  return sbFetch('/auth/v1/health', { method: 'GET', headers: SB.headers(false) }, 12000, 1)
     .then(function (res) {
       return { reachable: true, status: res.status, ms: Date.now() - started };
     })
@@ -1715,11 +1730,11 @@ var SB = {
       method: 'POST',
       headers: SB.headers(withAuth),
       body: JSON.stringify(body || {})
-    }, 15000).then(SB.parse);
+    }, 30000).then(SB.parse);
   },
 
   get: function (path) {
-    return sbFetch(path, { headers: SB.headers(true) }, 15000).then(SB.parse);
+    return sbFetch(path, { headers: SB.headers(true) }, 30000).then(SB.parse);
   },
 
   rpc: function (name, params) {
@@ -2410,21 +2425,35 @@ function renderNetViolations(st) {
 
 function netRefresh() {
   if (!sbConfigured() || !SB.session) return Promise.resolve();
-  return Promise.all([
-    sbState().then(renderNetViolations).catch(function (e) { netMsg('Статус: ' + e.message); }),
-    sbFriends().then(function (rows) {
-      renderNetFriends(rows);
-      handleFriendEvents(rows);
-    }).catch(function (e) {
-      $('net-friends-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>';
-    }),
-    sbLeaderboard().then(function (rows) {
-      renderNetLeaders(rows);
-      handleRankEvents(rows);
-    }).catch(function (e) {
-      $('net-leaders-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>';
+  var problems = [];
+  netMsg('Обновляю данные…', true);
+
+  return sbState()
+    .then(renderNetViolations)
+    .catch(function (e) { problems.push('статус — ' + sbErrorText(e)); })
+    .then(function () {
+      return sbFriends()
+        .then(function (rows) { renderNetFriends(rows); handleFriendEvents(rows); })
+        .catch(function (e) {
+          problems.push('друзья — ' + sbErrorText(e));
+          $('net-friends-list').innerHTML = '<p class="empty">' + esc(sbErrorText(e)) + '</p>';
+        });
     })
-  ]);
+    .then(function () {
+      return sbLeaderboard()
+        .then(function (rows) { renderNetLeaders(rows); handleRankEvents(rows); })
+        .catch(function (e) {
+          problems.push('рейтинг — ' + sbErrorText(e));
+          $('net-leaders-list').innerHTML = '<p class="empty">' + esc(sbErrorText(e)) + '</p>';
+        });
+    })
+    .then(function () {
+      if (problems.length) {
+        netMsg('Часть данных не загрузилась: ' + problems.join('; ') + ' Нажми «Повторить» — на медленном интернете со второго раза обычно проходит.');
+      } else {
+        netMsg('Данные обновлены: ' + SB.email(), true);
+      }
+    });
 }
 
 function handleFriendEvents(rows) {
@@ -2726,7 +2755,11 @@ function netDiag() {
   sbSelfCheck().then(function (res) {
     netBusy(false);
     if (res.reachable) {
-      netMsg('Связь есть: ' + sbHost() + ' ответил HTTP ' + res.status + ' за ' + res.ms + ' мс. Значит сеть в порядке — если ошибка повторяется, дело в данных или правах.', true);
+      var slow = res.ms > 3000;
+      netMsg('Связь есть: ' + sbHost() + ' ответил HTTP ' + res.status + ' за ' + res.ms + ' мс. ' +
+        (slow
+          ? 'Это медленно: запросы к базе будут отвечать с задержкой, часть может не успеть — попробуй «Повторить» или переключись на другую сеть.'
+          : 'Значит сеть в порядке: если ошибка повторяется, дело в данных или правах доступа.'), true);
       return;
     }
     netMsg('Связи нет (' + res.ms + ' мс). ' + res.error);
@@ -3401,6 +3434,8 @@ function init() {
 
   $('net-rename').addEventListener('click', netRename);
   $('net-check').addEventListener('click', netDiag);
+  $('net-retry').addEventListener('click', function () { netRefresh(); });
+  $('lead-retry').addEventListener('click', function () { netRefresh(); });
   $('net-new-nick').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); netRename(); }
   });
