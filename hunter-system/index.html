@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>СИСТЕМА — трекер тренировок с прокачкой уровня</title>
+<meta name="description" content="Дневник тренировок в стиле интерфейса «Системы» из аниме: опыт за каждую тренировку, уровни, ранги от E до S, ежедневные квесты и характеристики. Работает офлайн, данные хранятся в браузере.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="notify" id="notify" aria-live="polite"></div>
+
+<noscript>
+  <div class="wrap"><p class="noscript">Для работы Системы нужен включённый JavaScript: без него кнопки, опыт и квесты не работают.</p></div>
+</noscript>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true">&#9672;</span>
+      <span class="brand__t">СИСТЕМА</span>
+    </div>
+    <span class="statuschip" id="save-state">Хранилище: проверка…</span>
+    <span class="spacer"></span>
+    <button class="btn btn--ghost btn--tiny" id="reset-btn" type="button" hidden>Сбросить данные</button>
+  </div>
+
+  <section class="panel gate" id="gate" aria-labelledby="gate-title">
+    <p class="lbl">Уведомление системы</p>
+    <h1 class="gate__title" id="gate-title">Обнаружен новый Пробуждённый. <em>Регистрация охотника.</em></h1>
+    <p class="gate__lead">
+      Это дневник тренировок, который выглядит и работает как интерфейс из аниме:
+      каждая реальная тренировка даёт опыт, опыт поднимает уровень, уровень открывает
+      ранги от <b>E</b> до <b>S</b>, а характеристики растут от того, что ты действительно делаешь.
+      Данные остаются в твоём браузере — сервера нет.
+    </p>
+    <form class="gate__form" id="gate-form" novalidate>
+      <div class="field">
+        <label for="hunter-name"><span>Имя охотника</span></label>
+        <input type="text" id="hunter-name" name="hunter-name" maxlength="24" placeholder="Например: Фёдор" autocomplete="off">
+      </div>
+      <fieldset class="fs">
+        <legend class="lbl">Класс — с чего начинаешь</legend>
+        <div class="classes" id="classes"></div>
+      </fieldset>
+      <p class="err" id="gate-error" role="alert"></p>
+      <div class="gate__foot">
+        <button class="btn btn--primary" id="start-btn" type="button">Начать пробуждение</button>
+        <span class="hint">Класс меняется только при сбросе — выбирай то, что тебе ближе.</span>
+      </div>
+    </form>
+  </section>
+
+  <main id="app" hidden>
+    <section class="panel status" aria-labelledby="status-title">
+      <div>
+        <div class="panel__head">
+          <h2 id="status-title">Статус</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim" id="status-date"></span>
+        </div>
+        <div class="hunter">
+          <div class="rank" id="rank-badge">
+            <span class="rank__l" id="rank-letter">E</span>
+            <span class="rank__cap">РАНГ</span>
+          </div>
+          <div class="hunter__meta">
+            <span class="hunter__name" id="hunter-name-out">—</span>
+            <span class="hunter__title" id="hunter-title-out">Пробуждённый</span>
+            <span class="hunter__sub" id="hunter-class-out">—</span>
+          </div>
+        </div>
+        <div class="expbar">
+          <div class="expbar__top">
+            <span>Уровень <b id="level-out" class="num">1</b></span>
+            <span>Опыт <b id="exp-in" class="num">0</b> / <b id="exp-need" class="num">90</b></span>
+          </div>
+          <div class="track" role="progressbar" aria-label="Опыт до следующего уровня" id="exp-bar" aria-valuemin="0" aria-valuemax="90" aria-valuenow="0">
+            <div class="track__fill" id="exp-fill"></div>
+          </div>
+          <div class="rankscale" id="rankscale" aria-hidden="true"></div>
+          <div class="rankscale__cap"><span>E</span><span>D</span><span>C</span><span>B</span><span>A</span><span>S</span><span>EX</span></div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><b id="metric-workouts" class="num">0</b><span>Тренировок</span></div>
+          <div class="metric"><b id="metric-minutes" class="num">0</b><span>Минут всего</span></div>
+          <div class="metric"><b id="metric-streak" class="num">0</b><span>Серия, дней</span></div>
+          <div class="metric"><b id="metric-total-exp" class="num">0</b><span>Опыт всего</span></div>
+        </div>
+      </div>
+      <div class="radarwrap">
+        <p class="lbl lbl--dim">Характеристики</p>
+        <svg class="radar" id="radar" viewBox="0 0 240 240" role="img" aria-label="Диаграмма характеристик охотника"></svg>
+        <div class="statlist" id="statlist"></div>
+      </div>
+    </section>
+
+    <div class="grid">
+      <div class="stack">
+        <section class="panel" aria-labelledby="quests-title">
+          <div class="panel__head">
+            <h2 id="quests-title">Ежедневный квест</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="quests-left"></span>
+          </div>
+          <div class="quests" id="quests"></div>
+          <div class="questfoot">
+            <p>Квесты обновляются каждый день. Выполнишь все три — получишь бонус и день серии.</p>
+            <button class="btn btn--tiny btn--ghost" id="quests-reroll" type="button">Заменить набор</button>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="log-title">
+          <div class="panel__head">
+            <h2 id="log-title">Записать тренировку</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim">опыт начисляется сразу</span>
+          </div>
+          <form id="log-form" novalidate>
+            <div class="formgrid">
+              <div class="field">
+                <label for="log-type"><span>Тип</span></label>
+                <select id="log-type" name="log-type"></select>
+              </div>
+              <div class="field">
+                <label for="log-minutes"><span>Длительность, мин</span></label>
+                <input type="number" id="log-minutes" name="log-minutes" min="1" max="600" step="1" inputmode="numeric" placeholder="45">
+              </div>
+              <div class="field">
+                <label for="log-intensity"><span>Интенсивность</span></label>
+                <select id="log-intensity" name="log-intensity"></select>
+              </div>
+              <div class="field wide">
+                <label for="log-note"><span>Заметка (необязательно)</span></label>
+                <textarea id="log-note" name="log-note" maxlength="160" placeholder="Например: круговая на 5 станций, самочувствие нормальное"></textarea>
+              </div>
+            </div>
+            <p class="err" id="log-error" role="alert"></p>
+            <div class="tools">
+              <button class="btn btn--primary" id="log-submit" type="button">Получить опыт</button>
+              <span class="hint" id="exp-preview">Ожидаемый опыт: —</span>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel" aria-labelledby="ig-title">
+          <div class="panel__head">
+            <h2 id="ig-title">Контроль честности</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="ig-status"></span>
+          </div>
+          <p class="hint" id="ig-note"></p>
+          <div class="loglist" id="ig-list"></div>
+          <p class="hint supnote">Правила: одна запись до 240 минут, до 360 минут и до 6 записей за день. Записи, которые их нарушают, сохраняются в журнале, но опыта и характеристик не дают. Три таких записи замораживают начисление опыта на сутки. Это самопроверка от соблазна накрутить уровень: настоящий античит невозможен без аккаунтов и сервера, которых у офлайн-версии нет.</p>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel" aria-labelledby="rem-title">
+          <div class="panel__head">
+            <h2 id="rem-title">Напоминания</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="rem-next"></span>
+          </div>
+          <div class="remrows" id="rem-rows"></div>
+          <p class="err" id="rem-msg" role="status"></p>
+          <div class="tools">
+            <button class="btn btn--tiny" id="rem-perm" type="button">Разрешить уведомления</button>
+            <button class="btn btn--tiny" id="rem-ics" type="button">Напоминания в календарь (.ics)</button>
+          </div>
+          <p class="hint supnote">Пока страница закрыта, браузер напомнить не может — это ограничение любого сайта без сервера. Чтобы напоминания приходили на телефон, скачай файл календаря: он добавит ежедневные события в календарь Android или iPhone. Пока страница открыта, Система напоминает сама.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="week-title">
+          <div class="panel__head">
+            <h2 id="week-title">Опыт за 7 дней</h2>
+            <span class="rule"></span>
+          </div>
+          <div class="chart" id="chart" role="img" aria-label="Столбчатая диаграмма опыта за последние 7 дней"></div>
+          <div class="chartcap"><span>Максимум: <b id="chart-max" class="num">0</b></span><span id="chart-sum"></span></div>
+        </section>
+
+        <section class="panel" aria-labelledby="sup-title">
+          <div class="panel__head">
+            <h2 id="sup-title">Поддержка и добавки</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="sup-count"></span>
+          </div>
+          <form id="sup-form" novalidate>
+            <div class="formgrid">
+              <div class="field">
+                <label for="sup-kind"><span>Что принял</span></label>
+                <select id="sup-kind" name="sup-kind"></select>
+              </div>
+              <div class="field">
+                <label for="sup-dose"><span>Доза</span></label>
+                <input type="text" id="sup-dose" name="sup-dose" maxlength="16" placeholder="30 г, 2 капсулы" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="sup-when"><span>Когда</span></label>
+                <select id="sup-when" name="sup-when"></select>
+              </div>
+              <div class="field wide" id="sup-custom-field" hidden>
+                <label for="sup-custom"><span>Своё название</span></label>
+                <input type="text" id="sup-custom" name="sup-custom" maxlength="32" placeholder="Например: гейнер" autocomplete="off">
+              </div>
+            </div>
+            <p class="err" id="sup-error" role="alert"></p>
+            <div class="tools">
+              <button class="btn btn--primary" id="sup-add" type="button">Отметить приём</button>
+              <span class="hint">Запись появится в списке ниже и попадёт в экспорт данных.</span>
+            </div>
+          </form>
+          <div class="supweek" id="sup-week" aria-hidden="true"></div>
+          <div class="loglist" id="sup-list"></div>
+          <p class="hint supnote">Здесь только дневник наблюдений. Система не подбирает добавки и не считает дозы: нужны ли они и сколько — решает врач или тренер, а не приложение. Записанное не заменяет их совет, а дозу бери с упаковки, не выше.</p>
+        </section>
+
+        <section class="panel" aria-labelledby="journal-title">
+          <div class="panel__head">
+            <h2 id="journal-title">Журнал рейдов</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="journal-count"></span>
+          </div>
+          <div class="loglist" id="journal"></div>
+        </section>
+
+        <section class="panel" aria-labelledby="ach-title">
+          <div class="panel__head">
+            <h2 id="ach-title">Достижения</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="ach-count"></span>
+          </div>
+          <div class="achs" id="achievements"></div>
+        </section>
+
+        <section class="panel">
+          <details class="explain">
+            <summary>Как это работает</summary>
+            <dl>
+              <dt>Опыт</dt>
+              <dd>минуты x 1,6 x коэффициент интенсивности x коэффициент типа тренировки, плюс 15 опыта за первую тренировку дня и бонус за серию дней.</dd>
+              <dt>Уровень</dt>
+              <dd>порог уровня: 90 x уровень^1,15 опыта. Уровень не хранится, а вычисляется из суммарного опыта, поэтому удаление записи корректно пересчитывает статус.</dd>
+              <dt>Ранги</dt>
+              <dd>E — до 9 уровня, D — 10–19, C — 20–29, B — 30–44, A — 45–59, S — 60–79, EX — 80 и выше.</dd>
+              <dt>Характеристики</dt>
+              <dd>СИЛ, ВЫН, СКР, ВОЛ растут от типа тренировок и выполненных квестов, плюс 1 к каждой за уровень. Всё считается из журнала, а не хранится отдельно.</dd>
+              <dt>Квесты</dt>
+              <dd>набор на день выбирается генератором случайных чисел с зерном из даты, поэтому у всех в один день разные, но при перезагрузке страницы набор не меняется.</dd>
+              <dt>Напоминания</dt>
+              <dd>расписание хранится в браузере. Пока страница открыта, Система напоминает сама; для напоминаний при закрытой странице есть файл .ics — его добавляют в календарь телефона, и тогда события приходят как обычные будильники календаря.</dd>
+              <dt>Честность опыта</dt>
+              <dd>записи вне правил (длиннее 240 минут, больше 360 минут или 6 записей в день) сохраняются в журнале без опыта и характеристик; после трёх таких записей начисление опыта замораживается на сутки.</dd>
+              <dt>Поддержка</dt>
+              <dd>приёмы добавок хранятся отдельным журналом и не дают ни опыта, ни характеристик: это дневник наблюдений, а не рекомендация. Приложение ничего не советует и не считает дозы.</dd>
+              <dt>Сеть и сервер</dt>
+              <dd>в офлайн-версии сервера нет, поэтому друзья, таблица лидеров и синхронизация появятся только после подключения проекта Supabase: выполни supabase/schema.sql и впиши URL и публичный anon-ключ в config.js. Опыт на сервере считает только база, клиент его не пишет, поэтому подделать уровень в таблице лидеров нельзя, а заморозку и бан можно снять только из панели Supabase.</dd>
+              <dt>Данные</dt>
+              <dd>localStorage браузера. Экспорт и импорт — обычный JSON-файл с журналом тренировок.</dd>
+            </dl>
+          </details>
+          <div class="tools">
+            <button class="btn btn--tiny" id="export-btn" type="button">Экспорт JSON</button>
+            <button class="btn btn--tiny" id="import-btn" type="button">Импорт JSON</button>
+            <input type="file" id="import-file" accept="application/json,.json" aria-label="Файл сохранения с тренировками (JSON)" hidden>
+          </div>
+          <p class="hint" id="io-msg" role="status" style="margin-top:8px"></p>
+        </section>
+      </div>
+    </div>
+    <section class="panel" id="net-panel" aria-labelledby="net-title">
+      <div class="panel__head">
+        <h2 id="net-title">Сеть</h2>
+        <span class="rule"></span>
+        <span class="lbl lbl--dim" id="net-status"></span>
+      </div>
+      <div class="netgrid">
+        <div>
+          <p class="lbl lbl--dim">Аккаунт и синхронизация</p>
+          <div class="netcol">
+            <div class="field">
+              <label for="net-email"><span>Почта</span></label>
+              <input type="text" id="net-email" autocomplete="username" placeholder="you@example.com">
+            </div>
+            <div class="field">
+              <label for="net-pass"><span>Пароль</span></label>
+              <input type="password" id="net-pass" autocomplete="current-password" placeholder="минимум 6 символов">
+            </div>
+            <div class="field" id="net-nick-row">
+              <label for="net-nick"><span>Ник охотника</span></label>
+              <input type="text" id="net-nick" maxlength="24" autocomplete="off" placeholder="как тебя увидят в таблице">
+            </div>
+            <div class="tools">
+              <button class="btn btn--tiny btn--primary" id="net-signup" type="button">Создать аккаунт</button>
+              <button class="btn btn--tiny" id="net-signin" type="button">Войти</button>
+              <button class="btn btn--tiny btn--ghost" id="net-signout" type="button" hidden>Выйти</button>
+              <button class="btn btn--tiny" id="net-push" type="button" hidden>Выгрузить журнал</button>
+              <button class="btn btn--tiny" id="net-pull" type="button" hidden>Подтянуть с сервера</button>
+            </div>
+            <p class="hint" id="net-who"></p>
+          </div>
+        </div>
+        <div>
+          <p class="lbl lbl--dim">Друзья</p>
+          <div class="netcol">
+            <div class="tools" id="net-friend-tools">
+              <input type="text" id="net-friend-nick" maxlength="24" placeholder="ник охотника" aria-label="Ник охотника для заявки в друзья">
+              <button class="btn btn--tiny" id="net-friend-add" type="button">Добавить</button>
+            </div>
+            <div class="loglist" id="net-friends-list"></div>
+          </div>
+        </div>
+        <div>
+          <p class="lbl lbl--dim">Таблица лидеров</p>
+          <div class="netcol">
+            <div class="loglist" id="net-leaders-list"></div>
+          </div>
+        </div>
+        <div>
+          <p class="lbl lbl--dim">Честность и баны</p>
+          <div class="netcol">
+            <p class="hint" id="net-mod"></p>
+            <div class="loglist" id="net-viol-list"></div>
+          </div>
+        </div>
+      </div>
+      <p class="err" id="net-msg" role="status"></p>
+      <p class="hint supnote" id="net-note"></p>
+    </section>
+  </main>
+
+  <footer>
+    <span>СИСТЕМА v1.0 — интерфейс охотника</span>
+    <span>Тренируйся по самочувствию. Отдых — тоже часть системы.</span>
+  </footer>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="config.js"></script>
+<script src="sync.js"></script>
+<script src="ui.js"></script>
+<script src="social.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
