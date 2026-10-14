@@ -21,7 +21,18 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Prepare Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "JAVA_HOME=$JAVA_HOME"
+          echo "--- platforms ---"
+          ls "$ANDROID_HOME/platforms" || true
+          echo "--- build-tools ---"
+          ls "$ANDROID_HOME/build-tools" || true
+          SDKMGR=$(find "$ANDROID_HOME/cmdline-tools" -maxdepth 3 -name sdkmanager -type f | head -n1)
+          echo "sdkmanager: $SDKMGR"
+          yes | "$SDKMGR" --licenses > /dev/null 2>&1 || true
+          "$SDKMGR" --install "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null 2>&1 || true
 
       - uses: gradle/actions/setup-gradle@v4
         with:
