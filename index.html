@@ -384,6 +384,14 @@ footer{
 .event__d{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:3px}
 .event__dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--ember);margin-top:5px;box-shadow:0 0 10px rgba(255,154,60,.7)}
 
+.profilegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-bottom:12px}
+.prow{
+  border:1px solid rgba(92,225,255,.16);background:rgba(6,11,20,.6);padding:9px 11px;
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+}
+.prow span{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.prow b{font-family:var(--mono);font-size:13.5px;text-align:right}
+
 @media (max-width:900px){
   .status,.grid{grid-template-columns:minmax(0,1fr)}
   .explain dl{grid-template-columns:1fr;gap:2px 0}
@@ -718,6 +726,18 @@ footer{
             <div class="loglist" id="net-friends-list"></div>
           </div>
         </div>
+        <section class="panel" id="profile-panel" aria-labelledby="profile-title" hidden>
+          <div class="panel__head">
+            <h2 id="profile-title">Профиль охотника</h2>
+            <span class="rule"></span>
+            <span class="lbl lbl--dim" id="profile-sub"></span>
+          </div>
+          <div class="profilegrid" id="profile-body"></div>
+          <div class="tools">
+            <button class="btn btn--tiny btn--ghost" id="profile-close" type="button">Закрыть</button>
+          </div>
+          <p class="hint supnote">Чужой профиль открывается, только если вы друзья: чужие данные база не отдаёт. В карточке видны класс, уровень, опыт, серия, стаж и сводка тренировок — без названий упражнений и заметок.</p>
+        </section>
         <p class="hint supnote" id="lead-note"></p>
       </section>
     </div>
@@ -1736,6 +1756,7 @@ function sbFriends() { return SB.rpc('list_friends'); }
 function sbAddFriend(nickname) { return SB.rpc('send_friend_request', { p_nickname: nickname }); }
 function sbAnswerFriend(id, accept) { return SB.rpc('answer_friend_request', { p_friend: id, p_accept: accept }); }
 function sbRemoveFriend(id) { return SB.rpc('remove_friend', { p_friend: id }); }
+function sbProfileCard(id) { return SB.rpc('profile_card', { p_id: id }); }
 </script>
 <script>function renderStorageChip() {
   $('save-state').innerHTML = storageOk
@@ -2277,7 +2298,8 @@ function renderNetFriends(rows) {
         '<div class="logitem__t">' + esc(f.nickname) + '</div>' +
         '<div class="logitem__d">уровень ' + f.level + ' · опыт ' + f.total_exp + '</div>' +
         badge +
-      '</div>' + actions +
+      '</div>' +
+      '<button class="btn btn--tiny btn--ghost" type="button" data-act="profile" data-id="' + esc(f.id) + '">Профиль</button>' + actions +
     '</div>';
   }).join('');
 }
@@ -2297,6 +2319,7 @@ function renderNetLeaders(rows) {
         (p.banned ? '<div class="igbadge">забанен, опыт не идёт</div>' : '') +
       '</div>' +
       '<span class="logitem__e">' + p.total_exp + '</span>' +
+      '<button class="btn btn--tiny btn--ghost" type="button" data-act="profile" data-id="' + esc(p.id) + '">Профиль</button>' +
     '</div>';
   }).join('');
 }
@@ -2513,6 +2536,7 @@ function netFriendRow(e) {
   if (!el) return;
   var act = el.getAttribute('data-act');
   var id = el.getAttribute('data-id');
+  if (act === 'profile') { openProfile(id); return; }
   netBusy(true);
   var job = act === 'friend-answer'
     ? sbAnswerFriend(id, el.getAttribute('data-accept') === '1')
@@ -2564,6 +2588,55 @@ function netRename() {
       pushEvent('level', 'Ник изменён локально', before + ' → ' + nick);
       commit();
     });
+}
+
+function prow(label, value) {
+  return '<div class="prow"><span>' + esc(label) + '</span><b>' + esc(String(value)) + '</b></div>';
+}
+
+function renderProfileCard(card) {
+  var cls = null;
+  CLASSES.forEach(function (c) { if (c.id === card.cls) cls = c; });
+  var rk = rankOf(card.level);
+  $('profile-title').textContent = card.nickname;
+  $('profile-sub').textContent = card.self ? 'это ты' : 'друг';
+  var rows = [
+    prow('Класс', cls ? cls.name : (card.cls || '—')),
+    prow('Уровень', card.level + ' · ранг ' + rk.id),
+    prow('Титул', rk.title),
+    prow('Опыт', card.total_exp),
+    prow('Лучшая серия', card.best_streak + ' дн.'),
+    prow('В системе с', humanDate(dateKey(new Date(card.since)))),
+    prow('Тренировок', card.workouts),
+    prow('Минут всего', card.minutes),
+    prow('Последняя запись', card.last_at ? (humanDate(dateKey(new Date(card.last_at))) + ' ' + netTime(card.last_at)) : 'нет записей')
+  ];
+  if (card.banned) rows.push(prow('Статус', 'забанен за накрутку'));
+  $('profile-body').innerHTML = rows.join('');
+  $('profile-panel').hidden = false;
+  try { $('profile-panel').scrollIntoView({ block: 'start' }); } catch (e) { /* без прокрутки */ }
+}
+
+function openProfile(id) {
+  if (!id) return;
+  if (!sbConfigured() || !SB.session) {
+    netMsg('Профили других охотников открываются после входа в аккаунт.');
+    return;
+  }
+  netBusy(true);
+  netMsg('Открываю профиль…', true);
+  sbProfileCard(id).then(function (card) {
+    netBusy(false);
+    if (!card || card.error) {
+      netMsg(card && card.error ? card.error : 'Профиль недоступен.');
+      return;
+    }
+    netMsg('Профиль открыт ниже.', true);
+    renderProfileCard(card);
+  }).catch(function (e) {
+    netBusy(false);
+    netMsg('Профиль не открылся: ' + sbErrorText(e));
+  });
 }
 
 function netInit() {
@@ -3230,6 +3303,15 @@ function init() {
   $('net-rename').addEventListener('click', netRename);
   $('net-new-nick').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); netRename(); }
+  });
+
+  $('net-leaders-list').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-act="profile"]') : null;
+    if (!b) return;
+    openProfile(b.getAttribute('data-id'));
+  });
+  $('profile-close').addEventListener('click', function () {
+    $('profile-panel').hidden = true;
   });
 
   $('wk-presets').addEventListener('click', function (e) {
