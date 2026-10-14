@@ -362,6 +362,28 @@ footer{
 .alloc{font-family:var(--mono);font-size:11.5px;color:var(--ember);letter-spacing:.06em;margin-top:4px;text-align:center}
 .allocbtn{padding:2px 8px;line-height:1.3}
 
+.tab__badge{
+  display:inline-block;min-width:17px;padding:0 4px;margin-left:6px;
+  font-family:var(--mono);font-size:10px;line-height:16px;text-align:center;
+  background:var(--ember);color:#1a0f04;border-radius:9px;vertical-align:middle;
+}
+.events{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow:auto;padding-right:4px}
+.event{
+  display:flex;gap:10px;align-items:flex-start;
+  border-left:2px solid rgba(126,151,173,.4);background:rgba(6,11,20,.6);padding:10px 12px;
+}
+.event.is-new{border-left-color:var(--system);background:rgba(92,225,255,.07)}
+.event__kind{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--dim);
+  border:1px solid rgba(126,151,173,.35);padding:2px 5px;white-space:nowrap;
+}
+.event.is-new .event__kind{color:var(--system);border-color:var(--system-dim)}
+.event__main{flex:1;min-width:0}
+.event__t{font-size:14px;font-weight:600}
+.event__b{font-size:12.5px;color:#c3d8e8;margin-top:2px}
+.event__d{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:3px}
+.event__dot{width:8px;height:8px;flex:none;border-radius:50%;background:var(--ember);margin-top:5px;box-shadow:0 0 10px rgba(255,154,60,.7)}
+
 @media (max-width:900px){
   .status,.grid{grid-template-columns:minmax(0,1fr)}
   .explain dl{grid-template-columns:1fr;gap:2px 0}
@@ -430,6 +452,7 @@ footer{
       <button class="tab" type="button" data-tab="train">Тренировка</button>
       <button class="tab" type="button" data-tab="status">Статус</button>
       <button class="tab" type="button" data-tab="leaders">Лидеры</button>
+      <button class="tab" type="button" data-tab="events">События <span class="tab__badge" id="events-badge" hidden></span></button>
       <button class="tab" type="button" data-tab="net">Сеть</button>
       <button class="tab" type="button" data-tab="more">Ещё</button>
     </nav>
@@ -603,6 +626,21 @@ footer{
       </div>
     </div>
 
+    <div class="tabpage" id="tab-events" hidden>
+      <section class="panel" aria-labelledby="events-title">
+        <div class="panel__head">
+          <h2 id="events-title">События</h2>
+          <span class="rule"></span>
+          <span class="lbl lbl--dim" id="events-count"></span>
+        </div>
+        <div class="tools">
+          <button class="btn btn--tiny btn--ghost" id="events-clear" type="button">Очистить список</button>
+        </div>
+        <div class="events" id="events-list"></div>
+        <p class="hint supnote">Сюда попадают напоминания о тренировке и спортивном питании, заявки в друзья, смещения в таблице лидеров, повышения уровня, штрафы и решения по спорным записям. Новые отмечены точкой и цифрой на вкладке, при открытии события считаются прочитанными.</p>
+      </section>
+    </div>
+
     <div class="tabpage" id="tab-net" hidden>
       <section class="panel" aria-labelledby="net-title">
         <div class="panel__head">
@@ -635,6 +673,13 @@ footer{
                 <button class="btn btn--tiny btn--ghost" id="net-signout" type="button" hidden>Выйти</button>
                 <button class="btn btn--tiny" id="net-push" type="button" hidden>Выгрузить журнал</button>
                 <button class="btn btn--tiny" id="net-pull" type="button" hidden>Подтянуть с сервера</button>
+              </div>
+              <div class="field" id="net-rename-row">
+                <label for="net-new-nick"><span>Сменить ник</span></label>
+                <div class="tools" style="margin-top:0">
+                  <input type="text" id="net-new-nick" maxlength="24" placeholder="новый ник" autocomplete="off" aria-label="Новый ник охотника">
+                  <button class="btn btn--tiny" id="net-rename" type="button">Сохранить ник</button>
+                </div>
               </div>
               <p class="hint" id="net-who"></p>
             </div>
@@ -892,6 +937,22 @@ function presetById(id) {
   return found;
 }
 
+var EVENT_KINDS = {
+  remind: 'НАПОМИНАНИЕ',
+  friend: 'ДРУЗЬЯ',
+  rank: 'РЕЙТИНГ',
+  level: 'УРОВЕНЬ',
+  penalty: 'ШТРАФ',
+  quest: 'КВЕСТ',
+  sync: 'СИНХРО',
+  ach: 'ДОСТИЖЕНИЕ',
+  integrity: 'ПРОВЕРКА'
+};
+
+function eventKindName(kind) {
+  return EVENT_KINDS[kind] || 'СОБЫТИЕ';
+}
+
 var REMIND_KEYS = ['train', 'supp', 'day'];
 
 function remindDefaults() {
@@ -1047,6 +1108,9 @@ function defaultState() {
     alloc: { str: 0, vit: 0, agi: 0, wil: 0 },
     sound: true,
     session: null,
+    events: [],
+    seenFriends: {},
+    leadSnapshot: {},
     bestStreak: 0
   };
 }
@@ -1068,6 +1132,9 @@ function loadState() {
     s.alloc = Object.assign({ str: 0, vit: 0, agi: 0, wil: 0 }, parsed.alloc && typeof parsed.alloc === 'object' ? parsed.alloc : {});
     s.sound = parsed.sound === undefined ? true : !!parsed.sound;
     s.session = parsed.session && typeof parsed.session === 'object' ? parsed.session : null;
+    s.events = Array.isArray(parsed.events) ? parsed.events : [];
+    s.seenFriends = parsed.seenFriends && typeof parsed.seenFriends === 'object' ? parsed.seenFriends : {};
+    s.leadSnapshot = parsed.leadSnapshot && typeof parsed.leadSnapshot === 'object' ? parsed.leadSnapshot : {};
     s.bestStreak = Number(parsed.bestStreak) || 0;
     return s;
   } catch (e) { return defaultState(); }
@@ -1350,6 +1417,7 @@ function checkAchievements(d) {
   });
   unlocked.forEach(function (a) {
     note('Достижение разблокировано', a.n, [a.d, '+' + a.exp + ' опыта'], 'ember');
+    pushEvent('ach', 'Достижение: ' + a.n, a.d + ' · +' + a.exp + ' опыта');
   });
   return unlocked.length > 0;
 }
@@ -1441,6 +1509,31 @@ function remindNextText() {
   if (!list.length) return 'выключены';
   list.sort(function (a, b) { return a.time < b.time ? -1 : 1; });
   return 'Ближайшее: ' + list[0].name + ' в ' + list[0].time;
+}
+
+function pushEvent(kind, title, body) {
+  state.events.unshift({
+    id: 'e' + Date.now() + '-' + Math.floor(Math.random() * 900 + 100),
+    at: new Date().toISOString(),
+    kind: kind,
+    title: title,
+    body: body || '',
+    read: false
+  });
+  if (state.events.length > 60) state.events = state.events.slice(0, 60);
+}
+
+function unreadEvents() {
+  var n = 0;
+  state.events.forEach(function (e) { if (!e.read) n++; });
+  return n;
+}
+
+function markEventsRead() {
+  var changed = false;
+  state.events.forEach(function (e) { if (!e.read) { e.read = true; changed = true; } });
+  if (changed) saveState();
+  return changed;
 }
 
 function pruneHistory() {
@@ -1749,11 +1842,37 @@ function renderStatList(stats) {
   }).join('');
 }
 
+function renderEvents() {
+  var list = state.events || [];
+  var unread = unreadEvents();
+  $('events-count').textContent = list.length ? ('всего ' + list.length + ' · новых ' + unread) : '';
+  var badge = $('events-badge');
+  badge.textContent = unread > 9 ? '9+' : String(unread);
+  badge.hidden = unread === 0;
+
+  if (!list.length) {
+    $('events-list').innerHTML = '<p class="empty">Пока событий нет. Здесь появятся напоминания о тренировке и спортпите, заявки в друзья, смещения в таблице лидеров, уровни и решения по спорным записям.</p>';
+    return;
+  }
+  $('events-list').innerHTML = list.map(function (e) {
+    var d = new Date(e.at);
+    return '<div class="event' + (e.read ? '' : ' is-new') + '">' +
+      '<span class="event__kind">' + esc(eventKindName(e.kind)) + '</span>' +
+      '<div class="event__main">' +
+        '<div class="event__t">' + esc(e.title) + '</div>' +
+        (e.body ? '<div class="event__b">' + esc(e.body) + '</div>' : '') +
+        '<div class="event__d">' + humanDate(dateKey(d)) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + '</div>' +
+      '</div>' +
+      (e.read ? '' : '<span class="event__dot" aria-hidden="true"></span>') +
+    '</div>';
+  }).join('');
+}
+
 var activeTab = 'quest';
 
 function showTab(name) {
   activeTab = name;
-  ['quest', 'train', 'status', 'leaders', 'net', 'more'].forEach(function (t) {
+  ['quest', 'train', 'status', 'leaders', 'events', 'net', 'more'].forEach(function (t) {
     var page = $('tab-' + t);
     if (page) page.hidden = (t !== name);
   });
@@ -2047,6 +2166,7 @@ function renderAll() {
   renderJournal();
   renderChart();
   renderAchievements();
+  renderEvents();
   renderExpPreview();
   renderStorageChip();
   showTab(activeTab);
@@ -2065,9 +2185,11 @@ function commit() {
 
   if (d.level > levelBefore) {
     note('Повышение уровня', 'Уровень ' + d.level + ' · ' + rankOf(d.level).title, ['Характеристики +1 к каждой'], 'ok');
+    pushEvent('level', 'Уровень ' + d.level, rankOf(d.level).title + ' · свободных очков: ' + freePoints());
   }
   if (d.rank.id !== rankBefore && d.level > levelBefore) {
     note('Ранг повышен', rankBefore + ' → ' + d.rank.id, ['Доступны более тяжёлые квесты, если сам готов.'], 'ember');
+    pushEvent('level', 'Ранг повышен: ' + rankBefore + ' → ' + d.rank.id, 'Новый титул: ' + d.rank.title);
   }
   if (d.streak > (state.bestStreak || 0)) state.bestStreak = Math.max(d.streak, state.bestStreak || 0);
 
@@ -2205,9 +2327,66 @@ function netRefresh() {
   if (!sbConfigured() || !SB.session) return Promise.resolve();
   return Promise.all([
     sbState().then(renderNetViolations).catch(function (e) { netMsg('Статус: ' + e.message); }),
-    sbFriends().then(renderNetFriends).catch(function (e) { $('net-friends-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; }),
-    sbLeaderboard().then(renderNetLeaders).catch(function (e) { $('net-leaders-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>'; })
+    sbFriends().then(function (rows) {
+      renderNetFriends(rows);
+      handleFriendEvents(rows);
+    }).catch(function (e) {
+      $('net-friends-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>';
+    }),
+    sbLeaderboard().then(function (rows) {
+      renderNetLeaders(rows);
+      handleRankEvents(rows);
+    }).catch(function (e) {
+      $('net-leaders-list').innerHTML = '<p class="empty">' + esc(e.message) + '</p>';
+    })
   ]);
+}
+
+function handleFriendEvents(rows) {
+  var added = false;
+  (rows || []).forEach(function (f) {
+    if (f.status !== 'pending' || !f.incoming || state.seenFriends[f.id]) return;
+    state.seenFriends[f.id] = true;
+    pushEvent('friend', 'Заявка в друзья от ' + f.nickname,
+      'Уровень ' + f.level + ' · опыт ' + f.total_exp + '. Прими или отклони во вкладке «Лидеры».');
+    added = true;
+  });
+  if (added) saveState();
+}
+
+function handleRankEvents(rows) {
+  if (!rows || !rows.length) return;
+  var snapshot = state.leadSnapshot || {};
+  var hadSnapshot = Object.keys(snapshot).length > 0;
+  var fresh = {};
+  var me = null;
+  rows.forEach(function (p, i) {
+    fresh[p.id] = i + 1;
+    if (p.me) me = { rank: i + 1 };
+  });
+  var changed = false;
+
+  if (me && hadSnapshot && snapshot[me.id] && snapshot[me.id] !== me.rank) {
+    var oldRank = snapshot[me.id];
+    if (me.rank > oldRank) {
+      var passed = [];
+      rows.forEach(function (p, i) {
+        if (p.me) return;
+        var was = snapshot[p.id];
+        var now = i + 1;
+        if (was === undefined ? now < me.rank : (was > now && now < me.rank)) passed.push(p.nickname);
+      });
+      pushEvent('rank', 'Тебя сместили: ' + oldRank + ' → ' + me.rank + ' место',
+        passed.length ? 'Обогнали: ' + passed.slice(0, 3).join(', ') : 'Впереди появились новые охотники.');
+    } else {
+      pushEvent('rank', 'Ты поднялся: ' + oldRank + ' → ' + me.rank + ' место',
+        'Опыт растёт быстрее, чем у соседей по таблице.');
+    }
+    changed = true;
+  }
+
+  state.leadSnapshot = fresh;
+  if (changed || !hadSnapshot) saveState();
 }
 
 function netSignUp() {
@@ -2289,6 +2468,7 @@ function netPush() {
       var text = 'Выгружено записей: ' + res.sent + (res.flagged ? ', без опыта: ' + res.flagged : '');
       if (res.frozen) text += '. Начисление заморожено до ' + netTime(res.frozen);
       netMsg(text + '.', true);
+      pushEvent('sync', 'Журнал выгружен на сервер', text);
       return netRefresh();
     })
     .catch(function (e) {
@@ -2305,6 +2485,7 @@ function netPull() {
     renderAll();
     netBusy(false);
     netMsg(added ? ('Добавлено записей: ' + added + '.') : 'Новых записей на сервере нет.', true);
+    pushEvent('sync', 'Загрузка с сервера', added ? ('Добавлено записей: ' + added) : 'Новых записей не было');
     return netRefresh();
   }).catch(function (e) {
     netBusy(false);
@@ -2344,6 +2525,45 @@ function netFriendRow(e) {
     netBusy(false);
     netMsg('Не получилось: ' + err.message);
   });
+}
+
+function netRename() {
+  var nick = $('net-new-nick').value.trim().replace(/\s+/g, ' ');
+  if (nick.length < 2 || nick.length > 24) {
+    netMsg('Ник — от 2 до 24 символов.');
+    return;
+  }
+  if (!state.hunter) state.hunter = { name: nick, cls: 'warrior', since: todayKey() };
+  var before = state.hunter.name;
+  state.hunter.name = nick;
+  saveState();
+  renderAll();
+
+  if (!sbConfigured() || !SB.session) {
+    netMsg('Ник изменён на «' + nick + '» (локально, вход в аккаунт не нужен).', true);
+    pushEvent('level', 'Ник изменён', before + ' → ' + nick + ' (локально)');
+    commit();
+    $('net-new-nick').value = '';
+    return;
+  }
+
+  netBusy(true);
+  netMsg('Отправляю новый ник на сервер…', true);
+  SB.rpc('set_profile', { p_nickname: nick, p_cls: state.hunter.cls || 'warrior' })
+    .then(function () {
+      netBusy(false);
+      netMsg('Ник изменён и на сервере: ' + nick, true);
+      pushEvent('level', 'Ник изменён', before + ' → ' + nick);
+      $('net-new-nick').value = '';
+      commit();
+      return netRefresh();
+    })
+    .catch(function (e) {
+      netBusy(false);
+      netMsg('Ник изменён только у тебя на устройстве: ' + sbErrorText(e));
+      pushEvent('level', 'Ник изменён локально', before + ' → ' + nick);
+      commit();
+    });
 }
 
 function netInit() {
@@ -2512,9 +2732,9 @@ function logSubmit(e) {
 
   if (flag) {
     note('Запись на проверке', 'Опыт не начислен', [flag], 'ember');
+    pushEvent('integrity', 'Запись на проверке', 'Опыт не начислен: ' + flag);
     return;
   }
-
   var after = derive();
   var lines = [TYPES[type].name + ' · ' + minutes + ' мин · ' + INTENSITY[intensity].name.toLowerCase()];
   if (first) lines.push('Первая тренировка дня: +' + FIRST_OF_DAY + ' опыта');
@@ -2554,6 +2774,7 @@ function questAction(act, index) {
 
   if (dayAllDone(day)) {
     note('Ежедневный квест выполнен', 'Все три задания закрыты', ['+' + DAY_BONUS + ' опыта', 'День засчитан в серию'], 'ok');
+    pushEvent('quest', 'Ежедневный квест выполнен', 'Все три задания закрыты · +' + DAY_BONUS + ' опыта');
   }
 }
 
@@ -2751,6 +2972,7 @@ function reminderTick() {
   due.forEach(function (item) {
     state.remind.fired[todayKey() + ':' + item.key] = true;
     note(item.title, item.body, ['Напоминание из расписания'], 'ok');
+    pushEvent('remind', item.title, item.body);
     notifySystem(item.title, item.body);
   });
   saveState();
@@ -2893,6 +3115,7 @@ function finishSession() {
 
   if (flag) {
     note('Запись на проверке', 'Опыт не начислен', [flag], 'ember');
+    pushEvent('integrity', 'Тренировка на проверке', 'Опыт не начислен: ' + flag);
     return;
   }
   var lines = [s.totalReps + ' ' + (p.unit || '') + ' за ' + minutes + ' мин'];
@@ -2907,6 +3130,7 @@ function penaltyAction(act) {
     var res = addPenaltyProgress(PENALTY.step);
     if (res.done) {
       note('Штраф снят', 'Штрафное задание закрыто', ['+' + PENALTY.exp + ' опыта', 'Опыт снова полный'], 'ok');
+      pushEvent('penalty', 'Штраф снят', 'Штрафное задание закрыто · +' + PENALTY.exp + ' опыта · опыт снова полный');
       sfx(940);
     } else {
       sfx(500);
@@ -2915,6 +3139,7 @@ function penaltyAction(act) {
     st.day.penaltyProgress = PENALTY.target;
     st.day.penaltyCleared = true;
     note('Штраф снят', 'Штрафное задание закрыто', ['+' + PENALTY.exp + ' опыта'], 'ok');
+    pushEvent('penalty', 'Штраф снят', 'Штрафное задание закрыто вручную · +' + PENALTY.exp + ' опыта');
     sfx(940);
   }
   commit();
@@ -2960,6 +3185,7 @@ function watchDayChange() {
       note('Новый день', 'Ежедневный квест обновлён', ['Три новых задания до полуночи']);
       if (failed.length) {
         note('Провал квеста', 'Ежедневный квест не был закрыт', ['Серия обнулена, включена штрафная зона'], 'ember');
+        pushEvent('penalty', 'Провал ежедневного квеста', 'Серия обнулена: ' + failed.join(', '));
       }
     }
   }, 60000);
@@ -2985,8 +3211,25 @@ function init() {
   $('tabs').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('button[data-tab]') : null;
     if (!b) return;
-    showTab(b.getAttribute('data-tab'));
+    var name = b.getAttribute('data-tab');
+    showTab(name);
+    if (name === 'events') {
+      markEventsRead();
+      renderEvents();
+    }
     sfx(480);
+  });
+
+  $('events-clear').addEventListener('click', function () {
+    state.events = [];
+    saveState();
+    renderEvents();
+    note('Список событий очищен', 'Новые появятся сами');
+  });
+
+  $('net-rename').addEventListener('click', netRename);
+  $('net-new-nick').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); netRename(); }
   });
 
   $('wk-presets').addEventListener('click', function (e) {
@@ -3021,6 +3264,7 @@ function init() {
 
   if (failedDays.length) {
     note('Провал квеста', 'Ежедневный квест не был закрыт', ['Серия обнулена, включена штрафная зона', 'Опыт за тренировки −30%'], 'ember');
+    pushEvent('penalty', 'Провал ежедневного квеста', 'Серия обнулена, включена штрафная зона: опыт за тренировки −30%');
   }
 
   $('start-btn').addEventListener('click', gateSubmit);
