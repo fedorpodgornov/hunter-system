@@ -689,6 +689,10 @@ footer{
                   <button class="btn btn--tiny" id="net-rename" type="button">Сохранить ник</button>
                 </div>
               </div>
+              <div class="tools">
+                <button class="btn btn--tiny" id="net-check" type="button">Проверить связь</button>
+                <span class="hint" id="net-host"></span>
+              </div>
               <p class="hint" id="net-who"></p>
             </div>
           </div>
@@ -1595,10 +1599,64 @@ function sbConfigured() {
   email_address_invalid: 'Почта выглядит некорректно: нужен адрес вида name@mail.ru.'
 };
 
+function sbHost() {
+  return sbConfigured() ? CONFIG.supabaseUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '') : 'сервер не настроен';
+}
+
+var SB_NET_HINT = 'Браузер не смог связаться с сервером. Это не ошибка ввода — запрос даже не дошёл. ' +
+  'Частые причины: нет интернета, домен не пускает сеть или DNS провайдера, мешает блокировщик рекламы или расширение браузера. ' +
+  'Проверить просто: открой в новой вкладке https://{HOST}/rest/v1/ — если страница не открывается, запросы из приложения тоже не пройдут. ' +
+  'Важно: тренировки, квесты, штрафная зона, добавки и статистика работают и без сервера. Сеть нужна только для входа в аккаунт, друзей, рейтинга и синхронизации.';
+
+function sbReachHint() {
+  return SB_NET_HINT.replace('{HOST}', sbHost());
+}
+
+function sbFetch(path, options, timeoutMs) {
+  var limit = timeoutMs || 12000;
+  var opts = {};
+  Object.keys(options || {}).forEach(function (k) { opts[k] = options[k]; });
+  var ctrl = null;
+  try { ctrl = new AbortController(); } catch (e) { ctrl = null; }
+  if (ctrl) opts.signal = ctrl.signal;
+  var timer = window.setTimeout(function () {
+    if (ctrl) { try { ctrl.abort(); } catch (e) { /* уже прерван */ } }
+  }, limit);
+  return fetch(SB.url(path), opts).then(function (res) {
+    window.clearTimeout(timer);
+    return res;
+  }, function (err) {
+    window.clearTimeout(timer);
+    var e = new Error('network');
+    e.network = true;
+    if (err && err.name === 'AbortError') {
+      e.message = 'Сервер не ответил за ' + Math.round(limit / 1000) + ' секунд.';
+    } else {
+      e.message = 'Нет связи с сервером.';
+    }
+    e.original = err;
+    throw e;
+  });
+}
+
 function sbErrorText(err) {
   if (!err) return 'Неизвестная ошибка.';
+  if (err.network) return sbReachHint();
   if (err.errorCode && SB_ERRORS[err.errorCode]) return SB_ERRORS[err.errorCode];
-  return err.message || 'Неизвестная ошибка.';
+  var m = String(err.message || '');
+  if (m === 'Failed to fetch' || m === 'Load failed' || m === 'NetworkError when attempting to fetch resource.') return sbReachHint();
+  return m || 'Неизвестная ошибка.';
+}
+
+function sbSelfCheck() {
+  var started = Date.now();
+  return sbFetch('/auth/v1/health', { method: 'GET', headers: SB.headers(false) }, 10000)
+    .then(function (res) {
+      return { reachable: true, status: res.status, ms: Date.now() - started };
+    })
+    .catch(function (e) {
+      return { reachable: false, ms: Date.now() - started, error: sbErrorText(e) };
+    });
 }
 
 function sbLooksLikeDuplicate(err) {
@@ -1653,15 +1711,15 @@ var SB = {
   },
 
   post: function (path, body, withAuth) {
-    return fetch(SB.url(path), {
+    return sbFetch(path, {
       method: 'POST',
       headers: SB.headers(withAuth),
       body: JSON.stringify(body || {})
-    }).then(SB.parse);
+    }, 15000).then(SB.parse);
   },
 
   get: function (path) {
-    return fetch(SB.url(path), { headers: SB.headers(true) }).then(SB.parse);
+    return sbFetch(path, { headers: SB.headers(true) }, 15000).then(SB.parse);
   },
 
   rpc: function (name, params) {
@@ -2258,6 +2316,8 @@ function renderNet() {
   $('net-note').textContent = conf
     ? 'Опыт и уровень считает сервер, поэтому свои цифры подделать нельзя. Снять заморозку или бан себе тоже нельзя — это делает только владелец проекта в панели Supabase. Синхронизация включается кнопками вручную: автоматической фоновой синхронизации нет.'
     : 'Сервер не настроен. Выполни supabase/schema.sql в своём проекте Supabase и впиши его URL и публичный anon-ключ в config.js, потом пересобери файл. Без сервера друзей, таблицы лидеров и синхронизации быть не может: данные лежат только в этом браузере.';
+  var hostEl = $('net-host');
+  if (hostEl) hostEl.textContent = conf ? ('сервер: ' + sbHost()) : '';
 
   [['net-signup', !logged], ['net-signin', !logged], ['net-signout', logged], ['net-push', logged], ['net-pull', logged]].forEach(function (pair) {
     var el = $(pair[0]);
@@ -2653,6 +2713,23 @@ function openProfile(id) {
   }).catch(function (e) {
     netBusy(false);
     netMsg('Профиль не открылся: ' + sbErrorText(e));
+  });
+}
+
+function netDiag() {
+  if (!sbConfigured()) {
+    netMsg('Сервер не настроен: в config.js нет адреса и ключа.');
+    return;
+  }
+  netBusy(true);
+  netMsg('Проверяю связь с ' + sbHost() + '…', true);
+  sbSelfCheck().then(function (res) {
+    netBusy(false);
+    if (res.reachable) {
+      netMsg('Связь есть: ' + sbHost() + ' ответил HTTP ' + res.status + ' за ' + res.ms + ' мс. Значит сеть в порядке — если ошибка повторяется, дело в данных или правах.', true);
+      return;
+    }
+    netMsg('Связи нет (' + res.ms + ' мс). ' + res.error);
   });
 }
 
@@ -3323,6 +3400,7 @@ function init() {
   });
 
   $('net-rename').addEventListener('click', netRename);
+  $('net-check').addEventListener('click', netDiag);
   $('net-new-nick').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); netRename(); }
   });
