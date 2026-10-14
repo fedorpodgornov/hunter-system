@@ -1,4 +1,4 @@
-var CACHE = 'system-shell-v1';
+var CACHE = 'system-shell-v2';
 var FILES = ['index.html', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', function (e) {
@@ -22,6 +22,25 @@ self.addEventListener('activate', function (e) {
 self.addEventListener('fetch', function (e) {
   var url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return;
+
+  var isPage = e.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.slice(-1) === '/' ||
+    url.pathname.slice(-10) === 'index.html';
+
+  if (isPage) {
+    e.respondWith(
+      fetch(e.request).then(function (res) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put('index.html', copy); });
+        return res;
+      }).catch(function () {
+        return caches.match('index.html');
+      })
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       if (hit) return hit;
@@ -30,6 +49,6 @@ self.addEventListener('fetch', function (e) {
         caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
         return res;
       });
-    }).catch(function () { return caches.match('index.html'); })
+    })
   );
 });
