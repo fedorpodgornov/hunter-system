@@ -714,7 +714,7 @@ footer{
         <p class="err" id="lead-msg" role="status"></p>
         <div class="grid">
           <div class="stack">
-            <p class="lbl lbl--dim">Топ: ты и твои друзья</p>
+            <p class="lbl lbl--dim">Топ всех охотников</p>
             <div class="loglist" id="net-leaders-list"></div>
           </div>
           <div class="stack">
@@ -733,10 +733,11 @@ footer{
             <span class="lbl lbl--dim" id="profile-sub"></span>
           </div>
           <div class="profilegrid" id="profile-body"></div>
+          <div class="tools" id="profile-actions"></div>
           <div class="tools">
             <button class="btn btn--tiny btn--ghost" id="profile-close" type="button">Закрыть</button>
           </div>
-          <p class="hint supnote">Чужой профиль открывается, только если вы друзья: чужие данные база не отдаёт. В карточке видны класс, уровень, опыт, серия, стаж и сводка тренировок — без названий упражнений и заметок.</p>
+          <p class="hint supnote">Карточку видят все зарегистрированные охотники: ник, класс, уровень, ранг, опыт, лучшая серия, стаж и сводка тренировок (сколько записей, минут и когда была последняя). Заметки и упражнения из чужого журнала не показываются никогда — их не отдаёт база. Если не хочешь быть в общем рейтинге, скажи — добавлю галочку «скрыть из таблицы».</p>
         </section>
         <p class="hint supnote" id="lead-note"></p>
       </section>
@@ -2247,10 +2248,10 @@ function renderNet() {
   var logged = conf && !!SB.session && !!SB.session.access_token;
 
   $('net-status').textContent = !conf ? 'не подключено' : (logged ? 'вход выполнен' : 'войди в аккаунт');
-  $('lead-state').textContent = !conf ? 'не подключено' : (logged ? 'ты и друзья' : 'нужен вход');
+  $('lead-state').textContent = !conf ? 'не подключено' : (logged ? 'все охотники' : 'нужен вход');
   $('lead-note').textContent = logged
-    ? 'В таблице видны только ты и принятые друзья: чужие профили база не отдаёт. Опыт считает сервер, поэтому порядок в таблице подделать нельзя. Забаненные за накрутку остаются внизу списка с пометкой.'
-    : 'Чтобы увидеть таблицу, войди в аккаунт во вкладке «Сеть». Друзья добавляются по нику охотника — тому, что человек указал при регистрации.';
+    ? 'Показаны первые 100 охотников системы по опыту; своя строка видна всегда, даже если ты ниже сотого места. Опыт считает сервер, поэтому порядок подделать нельзя. Забаненные за накрутку стоят внизу с пометкой.'
+    : 'Чтобы увидеть общий рейтинг, войди в аккаунт во вкладке «Сеть». Друзья добавляются по нику охотника — тому, что человек указал при регистрации.';
 
   var cred = $('net-cred');
   if (cred) cred.hidden = logged;
@@ -2311,8 +2312,9 @@ function renderNetLeaders(rows) {
     return;
   }
   host.innerHTML = rows.map(function (p, i) {
+    var place = p.place ? p.place : (i + 1);
     return '<div class="logitem' + (p.me ? ' logitem--me' : '') + (p.banned ? ' logitem--flag' : '') + '">' +
-      '<span class="leadplace">' + (i + 1) + '</span>' +
+      '<span class="leadplace">' + place + '</span>' +
       '<div class="logitem__main">' +
         '<div class="logitem__t">' + esc(p.nickname) + (p.me ? ' · это ты' : '') + '</div>' +
         '<div class="logitem__d">уровень ' + p.level + '</div>' +
@@ -2384,8 +2386,9 @@ function handleRankEvents(rows) {
   var fresh = {};
   var me = null;
   rows.forEach(function (p, i) {
-    fresh[p.id] = i + 1;
-    if (p.me) me = { rank: i + 1 };
+    var place = p.place ? p.place : (i + 1);
+    fresh[p.id] = place;
+    if (p.me) me = { rank: place };
   });
   var changed = false;
 
@@ -2396,7 +2399,7 @@ function handleRankEvents(rows) {
       rows.forEach(function (p, i) {
         if (p.me) return;
         var was = snapshot[p.id];
-        var now = i + 1;
+        var now = p.place ? p.place : (i + 1);
         if (was === undefined ? now < me.rank : (was > now && now < me.rank)) passed.push(p.nickname);
       });
       pushEvent('rank', 'Тебя сместили: ' + oldRank + ' → ' + me.rank + ' место',
@@ -2614,7 +2617,21 @@ function renderProfileCard(card) {
   if (card.banned) rows.push(prow('Статус', 'забанен за накрутку'));
   $('profile-body').innerHTML = rows.join('');
   $('profile-panel').hidden = false;
+
+  var actions = $('profile-actions');
+  if (card.self || card.friend) {
+    actions.innerHTML = '';
+  } else {
+    actions.innerHTML = '<button class="btn btn--tiny btn--primary" type="button" data-act="profile-add" data-nick="' +
+      esc(card.nickname) + '">Добавить в друзья</button>';
+  }
   try { $('profile-panel').scrollIntoView({ block: 'start' }); } catch (e) { /* без прокрутки */ }
+}
+
+function profileAddFriend(nick) {
+  if (!nick) return;
+  $('net-friend-nick').value = nick;
+  netAddFriend();
 }
 
 function openProfile(id) {
@@ -2650,6 +2667,11 @@ function netInit() {
   $('net-pull').addEventListener('click', netPull);
   $('net-friend-add').addEventListener('click', netAddFriend);
   $('net-friends-list').addEventListener('click', netFriendRow);
+  $('profile-actions').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-act="profile-add"]') : null;
+    if (!b) return;
+    profileAddFriend(b.getAttribute('data-nick'));
+  });
   if (sbConfigured() && SB.session && SB.session.refresh_token) {
     SB.refresh().then(renderNet).catch(function () { renderNet(); });
   }
